@@ -1,4 +1,4 @@
-from flask import Flask, render_template
+from flask import Flask, render_template, request
 from app.customer import get_sorted_customers
 from app.admin import check_critical_stock
 from app.database import get_database_connection
@@ -12,6 +12,29 @@ def home():
     # Müşteri öncelik sırasını al
     customers = get_sorted_customers()
     return render_template('home.html', customers=customers)
+
+@app.route('/update-stock', methods=['GET', 'POST'])
+def update_stock():
+    if request.method == 'POST':
+        product_id = request.form['product_id']
+        new_stock = request.form['new_stock']
+
+        conn = get_database_connection()
+        cursor = conn.cursor()
+        cursor.execute("UPDATE Products SET Stock = %s WHERE ProductID = %s", (new_stock, product_id))
+        conn.commit()
+        conn.close()
+
+        return "Stok başarıyla güncellendi!"
+    
+    # GET request için tüm ürünleri listeleyin
+    conn = get_database_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT ProductID, ProductName, Stock FROM Products")
+    products = cursor.fetchall()
+    conn.close()
+    return render_template('update_stock.html', products=products)
+
 
 @app.route('/critical-stock')
 def critical_stock():

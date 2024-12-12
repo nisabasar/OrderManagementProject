@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Stok Güncelleme</title>
+</head>
+<body>
+    <h1>Stok Güncelleme</h1>
+    <form method="POST" action="/update-stock">
+        <label for="product_id">Ürün:</label>
+        <select name="product_id" id="product_id">
+            {% for product in products %}
+            <option value="{{ product.ProductID }}">{{ product.ProductName }} - Mevcut Stok: {{ product.Stock }}</option>
+            {% endfor %}
+        </select>
+        <br><br>
+        <label for="new_stock">Yeni Stok Miktarı:</label>
+        <input type="number" name="new_stock" id="new_stock" required>
+        <br><br>
+        <button type="submit">Stok Güncelle</button>
+    </form>
+</body>
+</html>
