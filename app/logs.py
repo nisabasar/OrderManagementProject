@@ -1,8 +1,12 @@
 from app.database import get_database_connection
 
-def insert_log(customer_id, order_id, log_type, details):
+def insert_log(customer_id=None, order_id=None, log_type="Info", details=""):
     try:
         conn = get_database_connection()
+        if conn is None:
+            print("Veritabanı bağlantısı sağlanamadı.")
+            return
+
         cursor = conn.cursor()
         cursor.execute("""
             INSERT INTO Logs (CustomerID, OrderID, LogType, LogDetails)

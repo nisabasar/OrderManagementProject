@@ -42,5 +42,23 @@
             })
             .catch(error => console.error('Veri alınırken bir hata oluştu:', error));
     </script>
+    <button onclick="updateChart()">Veriyi Güncelle</button>
+
+    <script>
+        function updateChart() {
+            fetch('/stock-data')
+                .then(response => response.json())
+                .then(data => {
+                    const labels = data.map(item => item.ProductName);
+                    const stockData = data.map(item => item.Stock);
+    
+                    stockChart.data.labels = labels;
+                    stockChart.data.datasets[0].data = stockData;
+                    stockChart.update(); // Grafiği güncelle
+                })
+                .catch(error => console.error('Veri güncelleme hatası:', error));
+        }
+    </script>
+    
 </body>
 </html>

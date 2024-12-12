@@ -7,6 +7,8 @@ from mysql.connector.cursor import MySQLCursorDict
 import json
 from flask import jsonify
 
+from app.logs import insert_log
+
 app = Flask(__name__)
 
 @app.route('/')
@@ -48,7 +50,7 @@ def create_order():
         cursor.execute("UPDATE Customers SET Budget = Budget - %s WHERE CustomerID = %s", (total_price, customer_id))
         conn.commit()
         conn.close()
-
+        insert_log(customer_id, None, "Info", f"{customer_id} ID'li müşteri {product_id} ID'li üründen {quantity} adet satın aldı.")
         return "Sipariş başarıyla oluşturuldu!"
 
     # GET request için müşteri ve ürün listesi
@@ -72,7 +74,7 @@ def update_stock():
         cursor.execute("UPDATE Products SET Stock = %s WHERE ProductID = %s", (new_stock, product_id))
         conn.commit()
         conn.close()
-
+        insert_log(None, None, "Info", f"Admin, {product_id} ID'li ürünün stok seviyesini {new_stock} olarak güncelledi.")
         return "Stok başarıyla güncellendi!"
     
     # GET request için tüm ürünleri listeleyin
@@ -82,6 +84,15 @@ def update_stock():
     products = cursor.fetchall()
     conn.close()
     return render_template('update_stock.html', products=products)
+
+@app.route('/logs')
+def view_logs():
+    conn = get_database_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM Logs ORDER BY LogDate DESC")
+    logs = cursor.fetchall()
+    conn.close()
+    return render_template('logs.html', logs=logs)
 
 
 @app.route('/critical-stock')
@@ -107,8 +118,10 @@ def stock_data():
         conn.close()
         
         # Veriyi JSON olarak döndür
+        insert_log(None, None, "Info", "Grafik için stok verileri alındı.")
         return jsonify(products)
     except Exception as e:
+        insert_log(None, None, "Error", f"Stok verisi alınırken hata oluştu: {e}")
         print(f"Hata oluştu: {e}")
         return jsonify({'error': 'Veri alınırken bir hata oluştu.'}), 500
     
