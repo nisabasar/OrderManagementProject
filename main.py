@@ -1,4 +1,4 @@
-from app.orders import process_orders_concurrently
+from app.admin import check_critical_stock
 
-# Multithreading ile sipariş sırasını işleme
-process_orders_concurrently()
+# Kritik stok seviyesini kontrol et
+check_critical_stock()

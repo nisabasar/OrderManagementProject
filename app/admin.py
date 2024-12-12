@@ -37,3 +37,24 @@ def delete_product(product_id):
         conn.close()
     except Exception as err:
         print(f"Ürün silinirken hata oluştu: {err}")
+
+def check_critical_stock():
+    try:
+        conn = get_database_connection()
+        if conn is None:
+            print("Veritabanı bağlantısı sağlanamadı.")
+            return
+
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT ProductID, ProductName, Stock
+            FROM Products
+            WHERE Stock < 10
+        """)
+        critical_products = cursor.fetchall()
+        conn.close()
+
+        for product in critical_products:
+            print(f"[UYARI] {product['ProductName']} stoğu kritik seviyede: {product['Stock']} adet kaldı!")
+    except Exception as err:
+        print(f"Kritik stok kontrol edilirken hata oluştu: {err}")

@@ -1,4 +1,5 @@
 import MySQLdb
+from MySQLdb.cursors import DictCursor
 
 def get_database_connection():
     try:
@@ -8,7 +9,7 @@ def get_database_connection():
             user="root",       # Kullanıcı adı
             passwd="12345",    # Şifre
             db="OrderManagement",  # Veritabanı adı
-            cursorclass=MySQLdb.cursors.DictCursor  # Sözlük biçiminde veri döndürmek için
+            cursorclass=DictCursor  # Sözlük biçiminde veri döndürmek için
         )
         print("Bağlantı başarılı!")
         return conn
