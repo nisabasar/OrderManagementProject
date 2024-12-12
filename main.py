@@ -1,4 +1,4 @@
-from app.customer import insert_random_customers
+from app.orders import create_order
 
-# Rastgele müşteri ekle
-insert_random_customers()
+# Örnek sipariş ekle
+create_order(9, 2, 100)  # Müşteri 1, Ürün 1'den 5 adet sipariş veriyor
