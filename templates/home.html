@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Müşteri Öncelik Sıralaması</title>
+</head>
+<body>
+    <h1>Müşteri Öncelik Sıralaması</h1>
+    <table border="1">
+        <thead>
+            <tr>
+                <th>Müşteri Adı</th>
+                <th>Müşteri Türü</th>
+                <th>Öncelik Skoru</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for customer in customers %}
+            <tr>
+                <td>{{ customer.CustomerName }}</td>
+                <td>{{ customer.CustomerType }}</td>
+                <td>{{ customer.PriorityScore }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</body>
+</html>

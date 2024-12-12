@@ -1,4 +1,5 @@
-from app.admin import check_critical_stock
+import sys
+from pathlib import Path
 
-# Kritik stok seviyesini kontrol et
-check_critical_stock()
+# Proje kök dizinini sisteme ekle
+sys.path.append(str(Path(__file__).resolve().parent))
