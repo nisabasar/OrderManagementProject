@@ -36,7 +36,7 @@ def process_orders():
             print("Veritabanı bağlantısı sağlanamadı.")
             return
 
-        cursor = conn.cursor(cursorclass=MySQLdb.cursors.DictCursor)
+        cursor = conn.cursor()
 
         # Öncelikli müşterileri sırala
         sorted_customers = get_sorted_customers()
@@ -71,7 +71,7 @@ def process_orders_concurrently():
             print("Veritabanı bağlantısı sağlanamadı.")
             return
 
-        cursor = conn.cursor(cursorclass=MySQLdb.cursors.DictCursor)
+        cursor = conn.cursor()
 
         # Bekleyen tüm siparişleri al
         cursor.execute("""
@@ -107,7 +107,7 @@ def create_order(customer_id, product_id, quantity):
             print("Veritabanı bağlantısı sağlanamadı.")
             return
 
-        cursor = conn.cursor(cursorclass=MySQLdb.cursors.DictCursor)
+        cursor = conn.cursor()
 
         # Müşteri ve ürün bilgilerini kontrol et
         cursor.execute("SELECT Budget, CustomerType FROM Customers WHERE CustomerID = %s", (customer_id,))

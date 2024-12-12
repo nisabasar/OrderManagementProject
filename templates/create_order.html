@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Sipariş Oluştur</title>
+</head>
+<body>
+    <h1>Sipariş Oluştur</h1>
+    <form method="POST" action="/create-order">
+        <label for="customer_id">Müşteri:</label>
+        <select name="customer_id" id="customer_id">
+            {% for customer in customers %}
+            <option value="{{ customer.CustomerID }}">{{ customer.CustomerName }}</option>
+            {% endfor %}
+        </select>
+        <br><br>
+        <label for="product_id">Ürün:</label>
+        <select name="product_id" id="product_id">
+            {% for product in products %}
+            <option value="{{ product.ProductID }}">{{ product.ProductName }}</option>
+            {% endfor %}
+        </select>
+        <br><br>
+        <label for="quantity">Miktar:</label>
+        <input type="number" name="quantity" id="quantity" required>
+        <br><br>
+        <button type="submit">Sipariş Oluştur</button>
+    </form>
+</body>
+</html>
