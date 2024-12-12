@@ -1,4 +1,4 @@
-from app.orders import create_order
+from app.orders import process_orders_concurrently
 
-# Örnek sipariş ekle
-create_order(9, 2, 100)  # Müşteri 1, Ürün 1'den 5 adet sipariş veriyor
+# Multithreading ile sipariş sırasını işleme
+process_orders_concurrently()

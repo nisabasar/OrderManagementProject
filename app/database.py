@@ -7,7 +7,8 @@ def get_database_connection():
             host="localhost",  # MySQL sunucu adresi
             user="root",       # Kullanıcı adı
             passwd="12345",    # Şifre
-            db="OrderManagement"  # Veritabanı adı
+            db="OrderManagement",  # Veritabanı adı
+            cursorclass=MySQLdb.cursors.DictCursor  # Sözlük biçiminde veri döndürmek için
         )
         print("Bağlantı başarılı!")
         return conn
