@@ -1,8 +1,4 @@
-from app.customer import insert_customer
-from app.logs import insert_log
+from app.customer import insert_random_customers
 
-# Yeni müşteri ekleme
-insert_customer("Frank", 1800)
-
-# Yeni log kaydı ekleme
-insert_log(1, None, "Info", "Müşteri sistemde oturum açtı.")
+# Rastgele müşteri ekle
+insert_random_customers()

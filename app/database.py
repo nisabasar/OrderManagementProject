@@ -1,14 +1,16 @@
-import mysql.connector
+import MySQLdb
 
 def get_database_connection():
     try:
-        conn = mysql.connector.connect(
-            host="localhost",
-            user="root",
-            password="12345",
-            database="ordermanagement"
+        print("Veritabanına bağlanmayı deniyorum...")
+        conn = MySQLdb.connect(
+            host="localhost",  # MySQL sunucu adresi
+            user="root",       # Kullanıcı adı
+            passwd="12345",    # Şifre
+            db="OrderManagement"  # Veritabanı adı
         )
+        print("Bağlantı başarılı!")
         return conn
-    except mysql.connector.Error as err:
+    except MySQLdb.Error as err:
         print(f"MySQL bağlantı hatası: {err}")
         return None
