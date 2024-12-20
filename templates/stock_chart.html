@@ -9,8 +9,12 @@
 <body>
     <h1>Stok Seviyesi Grafiği</h1>
     <canvas id="stockChart" width="400" height="200"></canvas>
+    <button onclick="updateChart()">Veriyi Güncelle</button>
+
     <script>
-        // Flask'tan gelen veriyi al
+        let stockChart; // Grafiği global olarak tanımla
+
+        // Flask'tan gelen veriyi al ve ilk grafiği oluştur
         fetch('/stock-data')
             .then(response => response.json())
             .then(data => {
@@ -19,7 +23,7 @@
 
                 // Chart.js ile grafik oluştur
                 const ctx = document.getElementById('stockChart').getContext('2d');
-                const stockChart = new Chart(ctx, {
+                stockChart = new Chart(ctx, {
                     type: 'bar',
                     data: {
                         labels: labels,
@@ -41,17 +45,16 @@
                 });
             })
             .catch(error => console.error('Veri alınırken bir hata oluştu:', error));
-    </script>
-    <button onclick="updateChart()">Veriyi Güncelle</button>
 
-    <script>
+        // Güncelleme düğmesi için fonksiyon
         function updateChart() {
             fetch('/stock-data')
                 .then(response => response.json())
                 .then(data => {
                     const labels = data.map(item => item.ProductName);
                     const stockData = data.map(item => item.Stock);
-    
+
+                    // Mevcut grafiğin verilerini güncelle
                     stockChart.data.labels = labels;
                     stockChart.data.datasets[0].data = stockData;
                     stockChart.update(); // Grafiği güncelle
@@ -59,6 +62,5 @@
                 .catch(error => console.error('Veri güncelleme hatası:', error));
         }
     </script>
-    
 </body>
 </html>
