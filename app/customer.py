@@ -22,6 +22,10 @@ def insert_customer(name, budget):
         print(f"Müşteri eklenirken hata oluştu: {err}")
 
 
+import random
+import MySQLdb
+from app.database import get_database_connection
+
 def insert_random_customers():
     try:
         conn = get_database_connection()
@@ -29,32 +33,38 @@ def insert_random_customers():
             print("Veritabanı bağlantısı sağlanamadı.")
             return
 
-        cursor = conn.cursor(cursorclass=MySQLdb.cursors.DictCursor)
+        cursor = conn.cursor()
 
-        # Rastgele müşteri oluşturma
         customer_types = ['Standard', 'Premium']
-        premium_count = 0  # En az 2 Premium müşteri eklemek için sayaç
+        premium_count = 0  # En az 2 Premium müşteri için sayaç
 
-        for _ in range(random.randint(5, 10)):  # 5-10 müşteri arasında oluştur
+        for _ in range(random.randint(5, 10)):  # 5-10 müşteri oluştur
             name = f"Customer{random.randint(1, 1000)}"
             budget = round(random.uniform(500, 3000), 2)  # 500-3000 TL arasında bütçe
-            if premium_count < 2:  # Başlangıçta en az 2 Premium müşteri olsun
+            username = f"user{random.randint(1000, 9999)}"
+            password = f"pass{random.randint(1000, 9999)}"
+            if premium_count < 2:
                 customer_type = 'Premium'
                 premium_count += 1
             else:
                 customer_type = random.choice(customer_types)
 
-            # Veritabanına müşteri ekleme
+            # Kullanıcı ekleme
+            cursor.execute("INSERT INTO Users (Username, Password) VALUES (%s, %s)", (username, password))
+            user_id = cursor.lastrowid
+
+            # Müşteri ekleme
             cursor.execute("""
-                INSERT INTO Customers (CustomerName, Budget, CustomerType)
-                VALUES (%s, %s, %s)
-            """, (name, budget, customer_type))
+                INSERT INTO Customers (CustomerName, Budget, CustomerType, UserID)
+                VALUES (%s, %s, %s, %s)
+            """, (name, budget, customer_type, user_id))
 
         conn.commit()
-        print("Rastgele müşteriler başarıyla eklendi!")
+        print("Rastgele müşteriler ve kullanıcılar başarıyla eklendi!")
         conn.close()
-    except Exception as err:
-        print(f"Müşteri eklenirken hata oluştu: {err}")
+    except MySQLdb.Error as err:
+        print(f"Hata: {err}")
+
 
 def update_all_customers_priority():
     try:

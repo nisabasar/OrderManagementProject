@@ -1,3 +1,4 @@
+import MySQLdb
 from flask import Flask, render_template, request, jsonify
 from app.customer import get_sorted_customers
 from app.admin import check_critical_stock
@@ -6,6 +7,61 @@ from app.logs import insert_log
 from mysql.connector import Error
 
 app = Flask(__name__)
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if request.method == 'POST':
+        username = request.form['username']
+        password = request.form['password']
+
+        try:
+            conn = get_database_connection()
+            cursor = conn.cursor(MySQLdb.cursors.DictCursor)
+
+            # Kullanıcı doğrulama
+            cursor.execute("SELECT * FROM Users WHERE Username = %s AND Password = %s", (username, password))
+            user = cursor.fetchone()
+            conn.close()
+
+            if user:
+                return f"Hoş geldiniz, {username}!"
+            else:
+                return "Geçersiz kullanıcı adı veya şifre.", 401
+        except MySQLdb.Error as err:
+            print(f"Giriş hatası: {err}")
+            return "Giriş sırasında bir hata oluştu.", 500
+    return render_template('login.html')
+
+@app.route('/register', methods=['GET', 'POST'])
+def register():
+    if request.method == 'POST':
+        username = request.form['username']
+        password = request.form['password']
+        customer_name = request.form['customer_name']
+        budget = float(request.form['budget'])
+        customer_type = request.form['customer_type']
+
+        try:
+            conn = get_database_connection()
+            cursor = conn.cursor()
+
+            # Kullanıcı oluştur
+            cursor.execute("INSERT INTO Users (Username, Password) VALUES (%s, %s)", (username, password))
+            user_id = cursor.lastrowid
+
+            # Müşteri oluştur
+            cursor.execute("""
+                INSERT INTO Customers (CustomerName, Budget, CustomerType, UserID)
+                VALUES (%s, %s, %s, %s)
+            """, (customer_name, budget, customer_type, user_id))
+
+            conn.commit()
+            conn.close()
+            return "Kayıt başarıyla tamamlandı!"
+        except MySQLdb.Error as err:
+            print(f"Kayıt hatası: {err}")
+            return "Kayıt sırasında bir hata oluştu.", 500
+    return render_template('register.html')
 
 @app.route('/')
 def home():

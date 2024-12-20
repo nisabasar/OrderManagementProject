@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kayıt Ol</title>
+</head>
+<body>
+    <h1>Kayıt Ol</h1>
+    <form method="POST">
+        <label for="customer_name">Müşteri Adı:</label>
+        <input type="text" name="customer_name" required><br>
+        <label for="username">Kullanıcı Adı:</label>
+        <input type="text" name="username" required><br>
+        <label for="password">Şifre:</label>
+        <input type="password" name="password" required><br>
+        <label for="budget">Bütçe:</label>
+        <input type="number" step="0.01" name="budget" required><br>
+        <label for="customer_type">Müşteri Türü:</label>
+        <select name="customer_type" required>
+            <option value="Standard">Standard</option>
+            <option value="Premium">Premium</option>
+        </select><br>
+        <button type="submit">Kayıt Ol</button>
+    </form>
+</body>
+</html>
