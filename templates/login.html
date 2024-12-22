@@ -4,15 +4,74 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Giriş Yap</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: linear-gradient(120deg, #3498db, #8e44ad);
+            height: 100vh;
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .login-container {
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            padding: 30px;
+            width: 350px;
+            text-align: center;
+        }
+        .login-container h1 {
+            color: #333;
+            margin-bottom: 20px;
+        }
+        .login-container input {
+            width: 90%;
+            padding: 10px;
+            margin: 10px 0;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            font-size: 16px;
+        }
+        .login-container button {
+            background: #3498db;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            font-size: 16px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        .login-container button:hover {
+            background: #2980b9;
+        }
+        .login-container a {
+            text-decoration: none;
+            color: white;
+            background: #8e44ad;
+            display: inline-block;
+            padding: 10px 20px;
+            font-size: 16px;
+            border-radius: 5px;
+            margin-top: 15px;
+            transition: background 0.3s;
+        }
+        .login-container a:hover {
+            background: #732d91;
+        }
+    </style>
 </head>
 <body>
-    <h1>Giriş Yap</h1>
-    <form method="POST">
-        <label for="username">Kullanıcı Adı:</label>
-        <input type="text" name="username" required><br>
-        <label for="password">Şifre:</label>
-        <input type="password" name="password" required><br>
-        <button type="submit">Giriş Yap</button>
-    </form>
+    <div class="login-container">
+        <h1>Giriş Yap</h1>
+        <form method="POST" action="/login">
+            <input type="text" name="username" placeholder="Kullanıcı Adı" required>
+            <input type="password" name="password" placeholder="Şifre" required>
+            <button type="submit">Giriş Yap</button>
+        </form>
+        <a href="/register">Kayıt Ol</a>
+    </div>
 </body>
 </html>

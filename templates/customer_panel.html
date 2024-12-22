@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Müşteri Paneli</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: linear-gradient(120deg, #1abc9c, #2ecc71);
+            color: #333;
+            margin: 0;
+            padding: 0;
+        }
+        .container {
+            max-width: 900px;
+            margin: 20px auto;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+            padding: 20px;
+        }
+        h1 {
+            text-align: center;
+            color: #2ecc71;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+        table th, table td {
+            border: 1px solid #ddd;
+            padding: 10px;
+            text-align: center;
+        }
+        table th {
+            background-color: #2ecc71;
+            color: white;
+            font-weight: bold;
+        }
+        form {
+            margin: 20px 0;
+        }
+        select, input, button {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+            border: 1px solid #ddd;
+            font-size: 1rem;
+        }
+        button {
+            background-color: #1abc9c;
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #16a085;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Hoş Geldiniz, {{ customer_info.CustomerName }}</h1>
+        <p><strong>Tür:</strong> {{ customer_info.CustomerType }}</p>
+        <p><strong>Bütçe:</strong> {{ customer_info.Budget }} TL</p>
+        <p><strong>Öncelik Skoru:</strong> {{ customer_info.PriorityScore }}</p>
+
+        <h2>Ürünler</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Ürün Adı</th>
+                    <th>Stok</th>
+                    <th>Fiyat (TL)</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for product in products %}
+                <tr>
+                    <td>{{ product.ProductName }}</td>
+                    <td>{{ product.Stock }}</td>
+                    <td>{{ product.Price }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <h2>Sipariş Oluştur</h2>
+        <form method="POST" action="/add-to-cart">
+            <label for="product_id">Ürün Seç</label>
+            <select name="product_id" id="product_id" required>
+                {% for product in products %}
+                <option value="{{ product.ProductID }}">{{ product.ProductName }} (Stok: {{ product.Stock }}, Fiyat: {{ product.Price }} TL)</option>
+                {% endfor %}
+            </select>
+
+            <label for="quantity">Miktar</label>
+            <input type="number" name="quantity" id="quantity" placeholder="Miktar" min="1" required>
+
+            <button type="submit">Sepete Ekle</button>
+        </form>
+
+        <h2>Sepetim</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Ürün Adı</th>
+                    <th>Miktar</th>
+                    <th>Toplam Fiyat</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in cart %}
+                <tr>
+                    <td>{{ item.ProductName }}</td>
+                    <td>{{ item.Quantity }}</td>
+                    <td>{{ item.TotalPrice }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <form method="POST" action="/submit-order">
+            <button type="submit">Siparişi Tamamla</button>
+        </form>
+    </div>
+</body>
+</html>

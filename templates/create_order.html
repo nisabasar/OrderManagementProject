@@ -1,29 +1,72 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sipariş Oluştur</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f8f9fa;
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            max-width: 600px;
+            margin: 20px auto;
+            background: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        h1 {
+            text-align: center;
+            color: #333;
+        }
+        label {
+            display: block;
+            margin: 10px 0 5px;
+            color: #555;
+        }
+        select, input[type="number"], button {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+        button {
+            background-color: #28a745;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #218838;
+        }
+    </style>
 </head>
 <body>
-    <h1>Sipariş Oluştur</h1>
-    <form method="POST" action="/create-order">
-        <label for="customer_id">Müşteri:</label>
-        <select name="customer_id" id="customer_id">
-            {% for customer in customers %}
-            <option value="{{ customer.CustomerID }}">{{ customer.CustomerName }}</option>
-            {% endfor %}
-        </select>
-        <br><br>
-        <label for="product_id">Ürün:</label>
-        <select name="product_id" id="product_id">
-            {% for product in products %}
-            <option value="{{ product.ProductID }}">{{ product.ProductName }}</option>
-            {% endfor %}
-        </select>
-        <br><br>
-        <label for="quantity">Miktar:</label>
-        <input type="number" name="quantity" id="quantity" required>
-        <br><br>
-        <button type="submit">Sipariş Oluştur</button>
-    </form>
+    <div class="container">
+        <h1>Sipariş Oluştur</h1>
+        <form method="POST" action="/create-order">
+            <!-- Ürün Seçimi -->
+            <label for="product_id">Ürün:</label>
+            <select name="product_id" id="product_id" required>
+                <option value="" disabled selected>Ürün Seç</option>
+                {% for product in products %}
+                <option value="{{ product[0] }}">{{ product[1] }} - Stok: {{ product[2] }} - Fiyat: {{ product[3] }} TL</option>
+                {% endfor %}
+            </select>
+
+            <!-- Miktar Girme -->
+            <label for="quantity">Miktar:</label>
+            <input type="number" name="quantity" id="quantity" min="1" max="5" required>
+
+            <!-- Sipariş Ver Butonu -->
+            <button type="submit">Sipariş Oluştur</button>
+        </form>
+    </div>
 </body>
 </html>

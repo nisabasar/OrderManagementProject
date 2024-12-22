@@ -3,18 +3,18 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Kayıt Ol</title>
+    <title>Ürün Ekle</title>
     <style>
         body {
             font-family: Arial, sans-serif;
-            background: linear-gradient(120deg, #2ecc71, #1abc9c);
+            background: linear-gradient(120deg, #f39c12, #e67e22);
             height: 100vh;
             margin: 0;
             display: flex;
             justify-content: center;
             align-items: center;
         }
-        .register-container {
+        .add-product-container {
             background: white;
             border-radius: 10px;
             box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
@@ -22,12 +22,12 @@
             width: 400px;
             text-align: center;
         }
-        .register-container h1 {
+        .add-product-container h1 {
             color: #333;
             margin-bottom: 20px;
+            font-size: 24px;
         }
-        .register-container input,
-        .register-container select {
+        .add-product-container input {
             width: 90%;
             padding: 10px;
             margin: 10px 0;
@@ -35,8 +35,8 @@
             border-radius: 5px;
             font-size: 16px;
         }
-        .register-container button {
-            background: #2ecc71;
+        .add-product-container button {
+            background: #f39c12;
             color: white;
             border: none;
             padding: 10px 20px;
@@ -44,39 +44,33 @@
             border-radius: 5px;
             cursor: pointer;
             transition: background 0.3s;
-            margin-top: 10px;
         }
-        .register-container button:hover {
-            background: #27ae60;
+        .add-product-container button:hover {
+            background: #e67e22;
         }
-        .register-container a {
+        .add-product-container a {
             display: block;
             margin-top: 15px;
             text-decoration: none;
-            color: #1abc9c;
+            color: #f39c12;
             font-weight: bold;
             transition: color 0.3s;
         }
-        .register-container a:hover {
-            color: #16a085;
+        .add-product-container a:hover {
+            color: #e67e22;
         }
     </style>
 </head>
 <body>
-    <div class="register-container">
-        <h1>Kayıt Ol</h1>
-        <form method="POST" action="/register">
-            <input type="text" name="username" placeholder="Kullanıcı Adı" required>
-            <input type="password" name="password" placeholder="Şifre" required>
-            <input type="text" name="customer_name" placeholder="İsim" required>
-            <input type="number" name="budget" placeholder="Bütçe" required>
-            <select name="customer_type">
-                <option value="Standard">Standard</option>
-                <option value="Premium">Premium</option>
-            </select>
-            <button type="submit">Kayıt Ol</button>
+    <div class="add-product-container">
+        <h1>Ürün Ekle</h1>
+        <form method="POST" action="/add-product">
+            <input type="text" name="product_name" placeholder="Ürün Adı" required>
+            <input type="number" name="stock" placeholder="Stok" required>
+            <input type="number" name="price" step="0.01" placeholder="Fiyat" required>
+            <button type="submit">Ekle</button>
         </form>
-        <a href="/login"><button style="background: #3498db; margin-top: 20px;">Giriş Yap</button></a>
+        <a href="/admin-dashboard">Admin Paneline Dön</a>
     </div>
 </body>
 </html>

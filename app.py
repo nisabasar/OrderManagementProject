@@ -1,13 +1,33 @@
-import MySQLdb
-from flask import Flask, render_template, request, jsonify
-from app.customer import get_sorted_customers
-from app.admin import check_critical_stock
+from flask import Flask, render_template, request, redirect, url_for, session
 from app.database import get_database_connection
-from app.logs import insert_log
-from mysql.connector import Error
+import MySQLdb
 
 app = Flask(__name__)
+app.secret_key = "supersecretkey"
 
+# Admin Panel: Yeni Admin Eklenmesi
+@app.route('/add-admin', methods=['GET', 'POST'])
+def add_admin():
+    if 'role' not in session or session['role'] != 'Admin':
+        return "Yetkiniz yok!", 403
+
+    if request.method == 'POST':
+        username = request.form['username']
+        password = request.form['password']
+
+        try:
+            conn = get_database_connection()
+            cursor = conn.cursor()
+            cursor.execute("INSERT INTO Users (Username, Password, Role) VALUES (%s, %s, 'Admin')", (username, password))
+            conn.commit()
+            conn.close()
+            return redirect(url_for('admin_dashboard'))
+        except Exception as e:
+            return f"Hata: {e}", 500
+
+    return render_template('add_admin.html')
+
+# Kullanıcı Girişi
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
@@ -16,22 +36,30 @@ def login():
 
         try:
             conn = get_database_connection()
-            cursor = conn.cursor(MySQLdb.cursors.DictCursor)
-
-            # Kullanıcı doğrulama
+            cursor = conn.cursor()
+            
+            # Kullanıcıyı doğrula
             cursor.execute("SELECT * FROM Users WHERE Username = %s AND Password = %s", (username, password))
             user = cursor.fetchone()
             conn.close()
 
             if user:
-                return f"Hoş geldiniz, {username}!"
+                session['user_id'] = user['UserID']
+                session['role'] = user['Role']
+                if user['Role'] == 'Admin':
+                    return redirect(url_for('admin_panel'))
+                elif user['Role'] == 'Customer':
+                    return redirect(url_for('customer_panel'))
+                else:
+                    return "Bilinmeyen kullanıcı rolü!", 403
             else:
-                return "Geçersiz kullanıcı adı veya şifre.", 401
-        except MySQLdb.Error as err:
-            print(f"Giriş hatası: {err}")
-            return "Giriş sırasında bir hata oluştu.", 500
+                return "Kullanıcı adı veya şifre hatalı!", 401
+        except Exception as e:
+            return f"Hata: {e}", 500
+
     return render_template('login.html')
 
+# Kayıt Olma
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     if request.method == 'POST':
@@ -44,12 +72,9 @@ def register():
         try:
             conn = get_database_connection()
             cursor = conn.cursor()
-
-            # Kullanıcı oluştur
-            cursor.execute("INSERT INTO Users (Username, Password) VALUES (%s, %s)", (username, password))
+            cursor.execute("INSERT INTO Users (Username, Password, Role) VALUES (%s, %s, 'Customer')", (username, password))
             user_id = cursor.lastrowid
 
-            # Müşteri oluştur
             cursor.execute("""
                 INSERT INTO Customers (CustomerName, Budget, CustomerType, UserID)
                 VALUES (%s, %s, %s, %s)
@@ -57,163 +82,333 @@ def register():
 
             conn.commit()
             conn.close()
-            return "Kayıt başarıyla tamamlandı!"
-        except MySQLdb.Error as err:
-            print(f"Kayıt hatası: {err}")
-            return "Kayıt sırasında bir hata oluştu.", 500
+            return redirect(url_for('login'))
+        except Exception as e:
+            return f"Hata: {e}", 500
+
     return render_template('register.html')
 
-@app.route('/')
-def home():
-    customers = get_sorted_customers()
-    return render_template('home.html', customers=customers)
+# Admin Dashboard
+@app.route('/admin-dashboard')
+def admin_dashboard():
+    if 'role' not in session or session['role'] != 'Admin':
+        return "Yetkiniz yok!", 403
 
-@app.route('/create-order', methods=['GET', 'POST'])
-def create_order():
-    if request.method == 'POST':
-        customer_id = request.form['customer_id']
-        product_id = request.form['product_id']
-        quantity = int(request.form['quantity'])
+    try:
+        conn = get_database_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM Orders WHERE OrderStatus = 'Pending'")
+        orders = cursor.fetchall()
+        conn.close()
 
-        try:
-            conn = get_database_connection()
-            cursor = conn.cursor()
+        return render_template('admin_dashboard.html', orders=orders)
+    except Exception as e:
+        return f"Hata: {e}", 500
 
-            # Ürün ve müşteri bilgilerini kontrol et
-            cursor.execute("SELECT Stock, Price FROM Products WHERE ProductID = %s", (product_id,))
-            product = cursor.fetchone()
-            cursor.execute("SELECT Budget, CustomerType FROM Customers WHERE CustomerID = %s", (customer_id,))
-            customer = cursor.fetchone()
+# Müşteri Paneli
+@app.route('/customer-panel', methods=['GET', 'POST'])
+def customer_panel():
+    if 'role' not in session or session['role'] != 'Customer':
+        return redirect(url_for('login'))
 
-            if not product or not customer:
-                insert_log(customer_id, None, "Error", "Ürün veya müşteri bulunamadı.", customer_type=None, product_id=product_id, quantity=quantity, result="Başarısız")
-                return "Ürün veya müşteri bulunamadı!"
+    customer_id = session['user_id']
 
-            if product['Stock'] < quantity:
-                insert_log(customer_id, None, "Error", f"Stok yetersiz: {product_id} ID'li ürün için {quantity} talep edildi, mevcut stok: {product['Stock']}", customer_type=customer['CustomerType'], product_id=product_id, quantity=quantity, result="Başarısız")
-                return "Stok yetersiz!"
+    try:
+        conn = get_database_connection()
+        cursor = conn.cursor()
 
-            if customer['Budget'] < (quantity * product['Price']):
-                insert_log(customer_id, None, "Error", f"Bütçe yetersiz: {customer_id} ID'li müşteri için toplam fiyat {quantity * product['Price']}, mevcut bütçe: {customer['Budget']}", customer_type=customer['CustomerType'], product_id=product_id, quantity=quantity, result="Başarısız")
-                return "Bütçe yetersiz!"
+        # Müşteri bilgilerini çek
+        cursor.execute("SELECT * FROM Customers WHERE UserID = %s", (customer_id,))
+        customer_info = cursor.fetchone()
 
-            # Sipariş ekle
-            total_price = quantity * product['Price']
-            cursor.execute("""
-                INSERT INTO Orders (CustomerID, ProductID, Quantity, TotalPrice, OrderStatus)
-                VALUES (%s, %s, %s, %s, 'Completed')
-            """, (customer_id, product_id, quantity, total_price))
-            order_id = cursor.lastrowid
+        # Ürün bilgilerini çek
+        cursor.execute("SELECT * FROM Products")
+        products = cursor.fetchall()
 
-            # Stok ve bütçeyi güncelle
-            cursor.execute("UPDATE Products SET Stock = Stock - %s WHERE ProductID = %s", (quantity, product_id))
-            cursor.execute("UPDATE Customers SET Budget = Budget - %s WHERE CustomerID = %s", (total_price, customer_id))
+        # Sepeti çek
+        cart = session.get('cart', [])
 
-            conn.commit()
-            insert_log(customer_id, order_id, "Info", f"Müşteri {customer_id} {quantity} adet {product_id} ID'li ürünü satın aldı.", customer_type=customer['CustomerType'], product_id=product_id, quantity=quantity, result="Başarılı")
-            return "Sipariş başarıyla oluşturuldu!"
-        except Exception as e:
-            insert_log(customer_id, None, "Error", f"Sipariş oluşturulurken hata: {e}", customer_type=None, product_id=product_id, quantity=quantity, result="Başarısız")
-            return f"Bir hata oluştu: {e}", 500
-        finally:
-            conn.close()
+        conn.close()
 
-    # GET request için müşteri ve ürün listesi
+        return render_template('customer_panel.html', customer_info=customer_info, products=products, cart=cart)
+    except Exception as e:
+        return f"Hata: {e}", 500
+
+# Sepete Ekleme
+@app.route('/add-to-cart', methods=['POST'])
+def add_to_cart():
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+
+    product_id = request.form['product_id']
+    quantity = int(request.form['quantity'])
+
     conn = get_database_connection()
     cursor = conn.cursor()
-    cursor.execute("SELECT CustomerID, CustomerName FROM Customers")
-    customers = cursor.fetchall()
-    cursor.execute("SELECT ProductID, ProductName FROM Products")
-    products = cursor.fetchall()
+    cursor.execute("SELECT ProductName, Stock, Price FROM Products WHERE ProductID = %s", (product_id,))
+    product = cursor.fetchone()
+
+    if not product or product[1] < quantity:
+        return "Stok yetersiz!", 400
+
+    cart = session.get('cart', [])
+    cart.append({
+        'ProductID': product_id,
+        'ProductName': product[0],
+        'Quantity': quantity,
+        'TotalPrice': product[2] * quantity
+    })
+    session['cart'] = cart
+
     conn.close()
-    return render_template('create_order.html', customers=customers, products=products)
+    return redirect(url_for('customer_panel'))
 
-@app.route('/update-stock', methods=['GET', 'POST'])
-def update_stock():
-    if request.method == 'POST':
-        product_id = request.form['product_id']
-        new_stock = int(request.form['new_stock'])
+# Siparişi Tamamlama
+@app.route('/submit-order', methods=['POST'])
+def submit_order():
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
 
-        try:
-            conn = get_database_connection()
-            cursor = conn.cursor()
-            cursor.execute("UPDATE Products SET Stock = %s WHERE ProductID = %s", (new_stock, product_id))
-            conn.commit()
-            insert_log(None, None, "Info", f"Admin, {product_id} ID'li ürünün stok seviyesini {new_stock} olarak güncelledi.", product_id=product_id, quantity=new_stock, result="Başarılı")
-            return "Stok başarıyla güncellendi!"
-        except Exception as e:
-            insert_log(None, None, "Error", f"Stok güncellenirken hata: {e}", product_id=product_id, result="Başarısız")
-            return f"Bir hata oluştu: {e}", 500
-        finally:
-            conn.close()
+    customer_id = session['user_id']
+    cart = session.get('cart', [])
 
-    # GET request için ürünleri listele
-    conn = get_database_connection()
-    cursor = conn.cursor()
-    cursor.execute("SELECT ProductID, ProductName, Stock FROM Products")
-    products = cursor.fetchall()
-    conn.close()
-    return render_template('update_stock.html', products=products)
+    try:
+        conn = get_database_connection()
+        cursor = conn.cursor()
 
-@app.route('/logs')
-def view_logs():
+        for item in cart:
+            cursor.execute("INSERT INTO Orders (CustomerID, ProductID, Quantity, TotalPrice, OrderStatus) VALUES (%s, %s, %s, %s, 'Pending')",
+                           (customer_id, item['ProductID'], item['Quantity'], item['TotalPrice']))
+
+            cursor.execute("UPDATE Products SET Stock = Stock - %s WHERE ProductID = %s",
+                           (item['Quantity'], item['ProductID']))
+
+        conn.commit()
+        session['cart'] = []  # Sepeti temizle
+        conn.close()
+
+        return redirect(url_for('customer_panel'))
+    except Exception as e:
+        return f"Hata: {e}", 500
+    
+@app.route('/admin-panel', methods=['GET', 'POST'])
+def admin_panel():
+    if 'role' not in session or session['role'] != 'Admin':
+        return "Yetkiniz yok!", 403
+
+    try:
+        conn = get_database_connection()
+        cursor = conn.cursor()
+
+         # Ürünleri ve kritik stokları çek
+        cursor.execute("SELECT * FROM Products")
+        products = cursor.fetchall()
+        cursor.execute("SELECT * FROM Products WHERE Stock < 10")
+        critical_products = cursor.fetchall()
+    
+        cursor.execute("""
+        SELECT CustomerID, CustomerName, Budget, CustomerType, TotalSpent, PriorityScore
+        FROM Customers
+        ORDER BY PriorityScore DESC
+        """)
+
+        # Siparişleri al
+        cursor.execute("""
+            SELECT o.OrderID, c.CustomerName, p.ProductName, o.Quantity, o.TotalPrice, o.OrderStatus
+            FROM Orders o
+            JOIN Customers c ON o.CustomerID = c.CustomerID
+            JOIN Products p ON o.ProductID = p.ProductID
+        """)
+        orders = cursor.fetchall()
+
+        # Müşterileri al
+        cursor.execute("""
+            SELECT CustomerID, CustomerName, Budget, TotalSpent, CustomerType, PriorityScore
+            FROM Customers
+        """)
+        customers = cursor.fetchall()
+
+        # Logları al
+        cursor.execute("""
+            SELECT LogID, CustomerID, LogType, LogDetails, LogDate
+            FROM Logs
+        """)
+        logs = cursor.fetchall()
+
+        conn.close()
+
+        return render_template(
+            'admin_panel.html',
+            products=products,
+            orders=orders,
+            customers=customers,
+            logs=logs
+        )
+    except Exception as e:
+        return f"Hata: {e}", 500
+
+
+@app.route('/add-product', methods=['POST'])
+def add_product():
+    if 'role' not in session or session['role'] != 'Admin':
+        return redirect(url_for('login'))
+
+    product_name = request.form['product_name']
+    stock = int(request.form['stock'])
+    price = float(request.form['price'])
+
     try:
         conn = get_database_connection()
         cursor = conn.cursor()
         cursor.execute("""
-            SELECT 
-                Logs.LogID,
-                Logs.CustomerID,
-                Logs.OrderID,
-                Customers.CustomerType,
-                Logs.ProductID,
-                Logs.Quantity,
-                Logs.LogType,
-                Logs.Result,
-                Logs.LogDetails,
-                Logs.LogDate
-            FROM Logs
-            LEFT JOIN Customers ON Logs.CustomerID = Customers.CustomerID
-            ORDER BY Logs.LogDate DESC
-        """)
+            INSERT INTO Products (ProductName, Stock, Price)
+            VALUES (%s, %s, %s)
+        """, (product_name, stock, price))
+        conn.commit()
+        conn.close()
+        return redirect(url_for('admin_panel'))
+    except Exception as e:
+        return f"Hata: {e}", 500
+
+@app.route('/update-product-stock', methods=['POST'])
+def update_product_stock():
+    if 'role' not in session or session['role'] != 'Admin':
+        return redirect(url_for('login'))
+
+    product_id = int(request.form['product_id'])
+    new_stock = int(request.form['new_stock'])
+
+    try:
+        conn = get_database_connection()
+        cursor = conn.cursor()
+        cursor.execute("""
+            UPDATE Products SET Stock = %s WHERE ProductID = %s
+        """, (new_stock, product_id))
+        conn.commit()
+        conn.close()
+        return redirect(url_for('admin_panel'))
+    except Exception as e:
+        return f"Hata: {e}", 500
+    
+@app.route('/delete-product', methods=['POST'])
+def delete_product():
+    if 'role' not in session or session['role'] != 'Admin':
+        return redirect(url_for('login'))
+
+    product_id = int(request.form['product_id'])
+
+    try:
+        conn = get_database_connection()
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM Products WHERE ProductID = %s", (product_id,))
+        conn.commit()
+        conn.close()
+        return redirect(url_for('admin_panel'))
+    except Exception as e:
+        return f"Hata: {e}", 500
+    
+@app.route('/approve-order', methods=['POST'])
+def approve_order():
+    if 'role' not in session or session['role'] != 'Admin':
+        return redirect(url_for('login'))
+
+    order_id = int(request.form['order_id'])
+
+    try:
+        conn = get_database_connection()
+        cursor = conn.cursor()
+        cursor.execute("""
+            UPDATE Orders SET OrderStatus = 'Approved' WHERE OrderID = %s
+        """, (order_id,))
+        conn.commit()
+        conn.close()
+        return redirect(url_for('admin_panel'))
+    except Exception as e:
+        return f"Hata: {e}", 500
+
+@app.route('/reject-order', methods=['POST'])
+def reject_order():
+    if 'role' not in session or session['role'] != 'Admin':
+        return redirect(url_for('login'))
+
+    order_id = int(request.form['order_id'])
+
+    try:
+        conn = get_database_connection()
+        cursor = conn.cursor()
+        cursor.execute("""
+            UPDATE Orders SET OrderStatus = 'Rejected' WHERE OrderID = %s
+        """, (order_id,))
+        conn.commit()
+        conn.close()
+        return redirect(url_for('admin_panel'))
+    except Exception as e:
+        return f"Hata: {e}", 500
+    
+@app.route('/filter-logs', methods=['POST'])
+def filter_logs():
+    log_type = request.form['log_type']
+    try:
+        conn = get_database_connection()
+        cursor = conn.cursor()
+        if log_type == "All":
+            cursor.execute("SELECT * FROM Logs")
+        else:
+            cursor.execute("SELECT * FROM Logs WHERE LogType = %s", (log_type,))
         logs = cursor.fetchall()
         conn.close()
-        return render_template('logs.html', logs=logs)
+        return render_template('admin_panel.html', logs=logs)
     except Exception as e:
-        print(f"Loglar getirilirken hata oluştu: {e}")
-        return "Loglar görüntülenirken bir hata oluştu.", 500
+        return f"Error: {e}", 500
 
-@app.route('/critical-stock')
-def critical_stock():
+    
+@app.route('/change-customer-type', methods=['POST'])
+def change_customer_type():
+    if 'role' not in session or session['role'] != 'Admin':
+        return redirect(url_for('login'))
+
+    customer_id = int(request.form['customer_id'])
+    new_type = request.form['customer_type']
+
     try:
         conn = get_database_connection()
         cursor = conn.cursor()
-        cursor.execute("SELECT ProductName, Stock FROM Products WHERE Stock < 10")
-        critical_products = cursor.fetchall()
+        cursor.execute("""
+            UPDATE Customers SET CustomerType = %s WHERE CustomerID = %s
+        """, (new_type, customer_id))
+        conn.commit()
         conn.close()
-        insert_log(None, None, "Info", "Kritik stok kontrolü yapıldı.")
-        return render_template('critical_stock.html', products=critical_products)
-    except Error as e:
-        insert_log(None, None, "Error", f"Kritik stok sorgusunda hata: {e}")
-        return "Bir hata oluştu.", 500
+        return redirect(url_for('admin_panel'))
+    except Exception as e:
+        return f"Hata: {e}", 500
 
-@app.route('/stock-data')
-def stock_data():
+@app.route('/admin-add-product', methods=['POST'])
+def admin_add_product():
+    if 'role' not in session or session['role'] != 'Admin':
+        return redirect(url_for('login'))
+
+    product_name = request.form['product_name']
+    stock = int(request.form['stock'])
+    price = float(request.form['price'])
+
     try:
         conn = get_database_connection()
         cursor = conn.cursor()
-        cursor.execute("SELECT ProductName, Stock FROM Products")
-        products = cursor.fetchall()
+        cursor.execute("""
+            INSERT INTO Products (ProductName, Stock, Price)
+            VALUES (%s, %s, %s)
+        """, (product_name, stock, price))
+        conn.commit()
         conn.close()
-        insert_log(None, None, "Info", "Grafik için stok verileri alındı.")
-        return jsonify(products)
+        return redirect(url_for('admin_panel'))
     except Exception as e:
-        insert_log(None, None, "Error", f"Stok verisi alınırken hata: {e}")
-        return jsonify({'error': 'Veri alınırken bir hata oluştu.'}), 500
+        return f"Hata: {e}", 500
 
-@app.route('/stock-chart')
-def stock_chart():
-    return render_template('stock_chart.html')
+@app.route('/logout', methods=['GET', 'POST'])
+def logout():
+    session.clear()
+    return redirect(url_for('login'))
+
 
 if __name__ == '__main__':
     app.run(debug=True)

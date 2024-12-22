@@ -88,46 +88,39 @@ def update_all_customers_priority():
         print(f"Tüm müşteriler için öncelik skoru güncellenirken hata oluştu: {err}")
 
 
+import time
+
 def calculate_priority_score(customer_id, order_time):
     try:
         conn = get_database_connection()
-        if conn is None:
-            print("Veritabanı bağlantısı sağlanamadı.")
-            return
-
-        cursor = conn.cursor(cursorclass=MySQLdb.cursors.DictCursor)
+        cursor = conn.cursor()
 
         # Müşteri bilgilerini al
         cursor.execute("SELECT CustomerType FROM Customers WHERE CustomerID = %s", (customer_id,))
         customer = cursor.fetchone()
 
         if not customer:
-            print("Müşteri bulunamadı.")
             return
 
-        customer_type = customer[0]
-
-        # Temel öncelik skoru
+        customer_type = customer['CustomerType']
         base_score = 15 if customer_type == "Premium" else 10
 
-        # Bekleme süresini hesapla
+        # Bekleme süresi hesaplama
         current_time = time.time()
         waiting_time = current_time - order_time
         waiting_weight = 0.5
         waiting_score = waiting_time * waiting_weight
 
-        # Toplam öncelik skorunu hesapla
+        # Toplam öncelik skoru
         priority_score = base_score + waiting_score
 
         # Veritabanında güncelle
-        cursor.execute("""
-            UPDATE Customers SET PriorityScore = %s WHERE CustomerID = %s
-        """, (priority_score, customer_id))
+        cursor.execute("UPDATE Customers SET PriorityScore = %s WHERE CustomerID = %s", (priority_score, customer_id))
         conn.commit()
-        print(f"Müşteri {customer_id} için öncelik skoru güncellendi: {priority_score:.2f}")
         conn.close()
-    except Exception as err:
-        print(f"Öncelik skoru hesaplanırken hata oluştu: {err}")
+    except Exception as e:
+        print(f"Hata: {e}")
+
 
 
 def get_sorted_customers():
