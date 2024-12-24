@@ -149,6 +149,7 @@
                         </tr>
                     </thead>
                     <tbody>
+                        {% if orders %}
                         {% for order in orders %}
                         <tr>
                             <td>{{ order.OrderID }}</td>
@@ -157,6 +158,11 @@
                             <td>{{ order.OrderStatus }}</td>
                         </tr>
                         {% endfor %}
+                        {% else %}
+                        <tr>
+                            <td colspan="4" class="text-center">Henüz bir siparişiniz yok.</td>
+                        </tr>
+                        {% endif %}
                     </tbody>
                 </table>
             </div>
@@ -186,7 +192,7 @@
                     .then(data => {
                         if (data.success) {
                             updateCart(data.cart_html, data.total_price);
-                            
+
                         } else {
                             alert(data.error);
                         }
@@ -217,6 +223,33 @@
         }
 
         bindRemoveFromCartButtons();
+
+        function fetchOrders() {
+            fetch('/customer-orders')  // Bu endpoint siparişleri dönecek
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        const ordersTableBody = document.querySelector('#orders-table tbody');
+                        ordersTableBody.innerHTML = ''; // Mevcut tabloyu temizle
+
+                        data.orders.forEach(order => {
+                            const row = `<tr>
+                            <td>${order.OrderID}</td>
+                            <td>${order.ProductName}</td>
+                            <td>${order.Quantity}</td>
+                            <td>${order.OrderStatus}</td>
+                        </tr>`;
+                            ordersTableBody.innerHTML += row;
+                        });
+                    } else {
+                        alert(data.error);
+                    }
+                })
+                .catch(error => console.error('Hata:', error));
+        }
+
+        // 5 saniyede bir siparişleri güncelle
+        setInterval(fetchOrders, 5000);
 
         document.querySelector('#checkout').addEventListener('click', function () {
             fetch('/cart/checkout', {

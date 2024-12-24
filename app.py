@@ -156,42 +156,86 @@ def register():
 
     return render_template('register.html')
 
+@app.route('/customer-orders', methods=['GET'])
+def customer_orders():
+    if 'role' not in session or session['role'] != 'Customer':
+        return jsonify({"success": False, "error": "Yetkisiz erişim!"})
+
+    try:
+        conn = get_database_connection()
+        cursor = conn.cursor()
+
+        # Kullanıcının siparişlerini al
+        cursor.execute("""
+            SELECT o.OrderID, p.ProductName, o.Quantity, o.OrderStatus
+            FROM Orders o
+            JOIN Products p ON o.ProductID = p.ProductID
+            WHERE o.CustomerID = %s
+        """, (session['customer_id'],))
+        orders = cursor.fetchall()
+
+        return jsonify({"success": True, "orders": orders})
+
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)})
 
 @app.route('/customer-panel', methods=['GET'])
 def customer_panel():
     if 'role' not in session or session['role'] != 'Customer':
         return redirect(url_for('login'))
 
-    conn = get_database_connection()
-    cursor = conn.cursor()
+    try:
+        conn = get_database_connection()
+        cursor = conn.cursor()
 
-    # Müşteri bilgilerini al
-    cursor.execute("SELECT * FROM Customers WHERE UserID = %s", (session['user_id'],))
-    customer_info = cursor.fetchone()
+        # Müşteri bilgilerini al
+        cursor.execute("SELECT * FROM Customers WHERE UserID = %s", (session['user_id'],))
+        customer_info = cursor.fetchone()
 
-    # Ürünleri al
-    cursor.execute("SELECT * FROM Products")
-    products = cursor.fetchall()
+        # Ürünleri al
+        cursor.execute("SELECT * FROM Products")
+        products = cursor.fetchall()
 
-    # Sepeti al
-    cursor.execute("""
-        SELECT p.ProductName, c.Quantity, c.TotalPrice, c.ProductID
-        FROM Cart c
-        JOIN Products p ON c.ProductID = p.ProductID
-        WHERE c.CustomerID = %s
-    """, (session['customer_id'],))
-    cart = cursor.fetchall()
+        # Sepeti al
+        cursor.execute("""
+            SELECT p.ProductName, c.Quantity, c.TotalPrice, c.ProductID
+            FROM Cart c
+            JOIN Products p ON c.ProductID = p.ProductID
+            WHERE c.CustomerID = %s
+        """, (session['customer_id'],))
+        cart = cursor.fetchall()
 
-    # Toplam tutarı hesapla
-    total_price = sum(item['TotalPrice'] for item in cart if item['TotalPrice'] is not None)
+        # Toplam tutarı hesapla
+        total_price = sum(item['TotalPrice'] for item in cart if item['TotalPrice'] is not None)
 
-    return render_template(
-        'customer_panel.html',
-        customer_info=customer_info,
-        products=products,
-        cart=cart,
-        total_price=f"{total_price:.2f} TL"
-    )
+        # Kullanıcının siparişlerini al
+        cursor.execute("""
+            SELECT o.OrderID, p.ProductName, o.Quantity, o.OrderStatus
+            FROM Orders o
+            JOIN Products p ON o.ProductID = p.ProductID
+            WHERE o.CustomerID = %s
+        """, (session['customer_id'],))
+        orders = cursor.fetchall()
+
+        return render_template(
+            'customer_panel.html',
+            customer_info=customer_info,
+            products=products,
+            cart=cart,
+            total_price=f"{total_price:.2f} TL",
+            orders=orders  # Siparişleri frontend'e gönder
+        )
+
+    except Exception as e:
+        error_message = f"Müşteri paneli hatası: {e}"
+        print(traceback.format_exc())
+        log_action(session['user_id'], "Error", error_message)
+        return render_template('error.html', error=error_message)
+
+    finally:
+        cursor.close()
+        conn.close()
+
 
 
 @app.route('/add-to-cart', methods=['POST'])
@@ -550,29 +594,7 @@ def admin_logs():
     except Exception as e:
         return f"Hata: {e}", 500
     
-@app.route('/customer/orders', methods=['GET'])
-def customer_orders():
-    if 'role' not in session or session['role'] != 'Customer':
-        return redirect(url_for('login'))
 
-    try:
-        conn = get_database_connection()
-        cursor = conn.cursor()
-
-        # Müşterinin siparişlerini çek
-        cursor.execute("""
-            SELECT o.OrderID, p.ProductName, o.Quantity, o.TotalPrice, o.OrderStatus
-            FROM Orders o
-            JOIN Products p ON o.ProductID = p.ProductID
-            WHERE o.CustomerID = %s
-        """, (session['customer_id'],))
-        orders = cursor.fetchall()
-
-        conn.close()
-        return render_template('customer_panel.html', orders=orders)
-
-    except Exception as e:
-        return f"Hata: {e}", 500
 
 
 
