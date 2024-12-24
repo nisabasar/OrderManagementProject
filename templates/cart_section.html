@@ -1,0 +1,23 @@
+<table class="table table-dark table-striped" id="cart-table">
+    <thead>
+        <tr>
+            <th>Ürün Adı</th>
+            <th>Miktar</th>
+            <th>Toplam Fiyat</th>
+            <th>Kaldır</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for item in cart %}
+        <tr>
+            <td>{{ item.ProductName }}</td>
+            <td>{{ item.Quantity }}</td>
+            <td>{{ item.TotalPrice }}</td>
+            <td>
+                <button class="btn btn-danger remove-from-cart" data-product-id="{{ item.ProductID }}">Sil</button>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+<h5 class="text-end mt-3">Toplam Tutar: <span id="total-price">{{ total_price or '0.00 TL' }}</span></h5>

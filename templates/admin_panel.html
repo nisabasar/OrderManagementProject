@@ -9,9 +9,9 @@
         body {
             font-family: Arial, sans-serif;
             background: linear-gradient(120deg, #3498db, #2ecc71);
+            color: #333;
             margin: 0;
             padding: 0;
-            color: #333;
         }
 
         .container {
@@ -23,17 +23,9 @@
             padding: 20px;
         }
 
-        h1, h2, h3 {
+        h1, h2 {
             text-align: center;
             color: #2ecc71;
-        }
-
-        .section {
-            border: 1px solid #ddd;
-            border-radius: 10px;
-            margin: 20px 0;
-            padding: 15px;
-            background-color: #f9f9f9;
         }
 
         table {
@@ -54,19 +46,11 @@
             font-weight: bold;
         }
 
-        table tbody tr:nth-child(even) {
-            background-color: #f9f9f9;
-        }
-
-        table tbody tr:hover {
-            background-color: #e1f5e6;
-        }
-
         form {
             margin: 20px 0;
         }
 
-        input, select, button {
+        select, input, button {
             width: 100%;
             padding: 10px;
             margin: 10px 0;
@@ -87,247 +71,64 @@
         button:hover {
             background-color: #16a085;
         }
-
-        .critical {
-            color: red;
-            font-weight: bold;
-        }
-
-        .logout {
-            text-align: right;
-            margin-bottom: 10px;
-        }
-
-        .logout button {
-            background-color: #e74c3c;
-        }
-
-        .logout button:hover {
-            background-color: #c0392b;
-        }
-
-        .chart-container {
-            margin: 20px 0;
-            text-align: center;
-        }
-
-        canvas {
-            max-width: 100%;
-            height: auto;
-        }
-
-        .sortable th {
-            cursor: pointer;
-        }
     </style>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 
 <body>
     <div class="container">
-        <div class="logout">
-            <form method="POST" action="/logout">
-                <button type="submit">Çıkış Yap</button>
-            </form>
-        </div>
-
         <h1>Admin Paneli</h1>
 
         <!-- Ürün Yönetimi -->
-        <div class="section">
-            <h2>Ürün Yönetimi</h2>
-            <h3>Mevcut Ürünler</h3>
-            <table>
-                <thead>
-                    <tr>
-                        <th>Ürün ID</th>
-                        <th>Ürün Adı</th>
-                        <th>Stok</th>
-                        <th>Fiyat (TL)</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for product in products %}
-                    <tr class="{{ 'critical' if product.Stock < 10 else '' }}">
-                        <td>{{ product.ProductID }}</td>
-                        <td>{{ product.ProductName }}</td>
-                        <td>{{ product.Stock }}</td>
-                        <td>{{ product.Price }}</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-
-            <h3>Ürün Ekle</h3>
-            <form method="POST" action="/add-product">
-                <input type="text" name="product_name" placeholder="Ürün Adı" required>
-                <input type="number" name="stock" placeholder="Stok" min="0" required>
-                <input type="number" name="price" placeholder="Fiyat (TL)" step="0.01" min="0" required>
-                <button type="submit">Ürün Ekle</button>
-            </form>
-
-            <h3>Stok Güncelleme</h3>
-            <form method="POST" action="/update-product-stock">
-                <select name="product_id" required>
-                    {% for product in products %}
-                    <option value="{{ product.ProductID }}">{{ product.ProductName }}</option>
-                    {% endfor %}
-                </select>
-                <input type="number" name="new_stock" placeholder="Yeni Stok Miktarı" min="0" required>
-                <button type="submit">Stok Güncelle</button>
-            </form>
-
-            <h3>Ürün Sil</h3>
-            <form method="POST" action="/delete-product">
-                <select name="product_id" required>
-                    {% for product in products %}
-                    <option value="{{ product.ProductID }}">{{ product.ProductName }}</option>
-                    {% endfor %}
-                </select>
-                <button type="submit">Ürün Sil</button>
-            </form>
-        </div>
-
-        <!-- Stok Grafik Görselleştirme -->
-        <div class="section">
-            <h2>Stok ve Kritik Uyarılar</h2>
-            <div class="chart-container">
-                <canvas id="stockChart"></canvas>
-            </div>
-            <script>
-                const ctx = document.getElementById('stockChart').getContext('2d');
-                const stockData = {
-                    labels: [{% for product in products %}"{{ product.ProductName }}", {% endfor %}],
-                    datasets: [{
-                        label: 'Ürün Stokları',
-                        data: [{% for product in products %}{{ product.Stock }}, {% endfor %}],
-                        backgroundColor: [{% for product in products %}"{{ 'rgba(255, 99, 132, 0.2)' if product.Stock < 10 else 'rgba(75, 192, 192, 0.2)' }}", {% endfor %}],
-                        borderColor: [{% for product in products %}"{{ 'rgba(255, 99, 132, 1)' if product.Stock < 10 else 'rgba(75, 192, 192, 1)' }}", {% endfor %}],
-                        borderWidth: 1
-                    }]
-                };
-                const config = {
-                    type: 'bar',
-                    data: stockData,
-                    options: {
-                        responsive: true,
-                        scales: {
-                            y: {
-                                beginAtZero: true
-                            }
-                        }
-                    }
-                };
-                new Chart(ctx, config);
-            </script>
-        </div>
+        <h2>Ürün Yönetimi</h2>
+        <form method="POST" action="/add-product">
+            <input type="text" name="product_name" placeholder="Ürün Adı" required>
+            <input type="number" name="stock" placeholder="Stok" min="1" required>
+            <input type="number" name="price" placeholder="Fiyat (TL)" step="0.01" required>
+            <button type="submit">Ürün Ekle</button>
+        </form>
 
         <!-- Sipariş Yönetimi -->
-        <div class="section">
-            <h2>Sipariş Yönetimi</h2>
-            <table>
-                <thead>
-                    <tr>
-                        <th>Sipariş ID</th>
-                        <th>Müşteri Adı</th>
-                        <th>Ürün Adı</th>
-                        <th>Miktar</th>
-                        <th>Toplam Fiyat</th>
-                        <th>Durum</th>
-                        <th>İşlem</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for order in orders %}
-                    <tr>
-                        <td>{{ order.OrderID }}</td>
-                        <td>{{ order.CustomerName }}</td>
-                        <td>{{ order.ProductName }}</td>
-                        <td>{{ order.Quantity }}</td>
-                        <td>{{ order.TotalPrice }}</td>
-                        <td>{{ order.OrderStatus }}</td>
-                        <td>
-                            <form method="POST" action="/approve-order" style="display: inline;">
-                                <input type="hidden" name="order_id" value="{{ order.OrderID }}">
-                                <button type="submit">Onayla</button>
-                            </form>
-                            <form method="POST" action="/reject-order" style="display: inline;">
-                                <input type="hidden" name="order_id" value="{{ order.OrderID }}">
-                                <button type="submit">Reddet</button>
-                            </form>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
+        <h2>Siparişler</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Sipariş ID</th>
+                    <th>Müşteri Adı</th>
+                    <th>Durum</th>
+                    <th>İşlem</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for order in orders %}
+                <tr>
+                    <td>{{ order.OrderID }}</td>
+                    <td>{{ order.CustomerName }}</td>
+                    <td>{{ order.OrderStatus }}</td>
+                    <td>
+                        <form method="POST" action="/approve-order" style="display:inline;">
+                            <input type="hidden" name="order_id" value="{{ order.OrderID }}">
+                            <button type="submit">Onayla</button>
+                        </form>
+                        <form method="POST" action="/reject-order" style="display:inline;">
+                            <input type="hidden" name="order_id" value="{{ order.OrderID }}">
+                            <button type="submit">Reddet</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
 
-        <!-- Müşteri Yönetimi -->
-        <div class="section">
-            <h2>Müşteri Yönetimi</h2>
-            <table>
-                <thead>
-                    <tr>
-                        <th>Müşteri ID</th>
-                        <th>Adı</th>
-                        <th>Bütçe</th>
-                        <th>Toplam Harcama</th>
-                        <th>Tür</th>
-                        <th>Öncelik Skoru</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for customer in customers %}
-                    <tr>
-                        <td>{{ customer.CustomerID }}</td>
-                        <td>{{ customer.CustomerName }}</td>
-                        <td>{{ customer.Budget }}</td>
-                        <td>{{ customer.TotalSpent }}</td>
-                        <td>{{ customer.CustomerType }}</td>
-                        <td>{{ customer.PriorityScore }}</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-
-        <!-- Log Yönetimi -->
-        <div class="section">
-            <h2>Log Yönetimi</h2>
-            <h3>Log Filtreleme</h3>
-            <form method="POST" action="/filter-logs">
-                <select name="log_type">
-                    <option value="All">Tüm Loglar</option>
-                    <option value="Error">Hata</option>
-                    <option value="Warning">Uyarı</option>
-                    <option value="Info">Bilgi</option>
-                </select>
-                <button type="submit">Filtrele</button>
-            </form>
-            <table>
-                <thead>
-                    <tr>
-                        <th>Log ID</th>
-                        <th>Müşteri ID</th>
-                        <th>Tür</th>
-                        <th>Detay</th>
-                        <th>Tarih</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for log in logs %}
-                    <tr>
-                        <td>{{ log.LogID }}</td>
-                        <td>{{ log.CustomerID }}</td>
-                        <td>{{ log.LogType }}</td>
-                        <td>{{ log.LogDetails }}</td>
-                        <td>{{ log.LogDate }}</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-
+        <!-- Log Görüntüleme -->
+        <h2>Log Yönetimi</h2>
+        <form method="POST" action="/filter-logs">
+            <select name="log_type">
+                <option value="All">Tüm Loglar</option>
+                <option value="Error">Hatalar</option>
+                <option value="Info">Bilgiler</option>
+            </select>
+            <button type="submit">Filtrele</button>
+        </form>
     </div>
 </body>
 
