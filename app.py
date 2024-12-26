@@ -1,5 +1,6 @@
 import traceback
 from flask import Flask, jsonify, render_template, request, redirect, url_for, session
+from app import customer
 from app.database import get_database_connection
 from datetime import datetime
 import MySQLdb
@@ -178,6 +179,40 @@ def customer_orders():
 
     except Exception as e:
         return jsonify({"success": False, "error": str(e)})
+    
+@app.route('/customer-info', methods=['GET'])
+def customer_info():
+    if 'role' not in session or session['role'] != 'Customer':
+        return jsonify({"success": False, "error": "Yetkisiz erişim!"})
+
+    try:
+        conn = get_database_connection()
+        cursor = conn.cursor()
+
+        # Müşteri bilgilerini al
+        cursor.execute("SELECT * FROM Customers WHERE UserID = %s", (session['user_id'],))
+        customer_info = cursor.fetchone()
+        
+        current_time = datetime.now()
+        priority_score = calculate_priority_score(customer, current_time)
+        
+        return jsonify({
+            "success": True,
+            "customer_name": customer_info['CustomerName'],
+            "customer_type": customer_info['CustomerType'],
+            "customer_budget": customer_info['Budget'],
+            "customer_budget": f"{customer['Budget']:.2f} TL",
+            "priority_score": customer['PriorityScore'],
+            "waiting_time": customer.get('WaitingTime', 'Hesaplanıyor...')
+         #   "priority_score": priority_score
+        })
+
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)})
+    
+    finally:
+        cursor.close()
+        conn.close()
 
 @app.route('/customer-panel', methods=['GET'])
 def customer_panel():
@@ -216,6 +251,8 @@ def customer_panel():
             WHERE o.CustomerID = %s
         """, (session['customer_id'],))
         orders = cursor.fetchall()
+        
+        priority_score = calculate_priority_score(customer_info) 
 
         return render_template(
             'customer_panel.html',
@@ -223,7 +260,8 @@ def customer_panel():
             products=products,
             cart=cart,
             total_price=f"{total_price:.2f} TL",
-            orders=orders  # Siparişleri frontend'e gönder
+            orders=orders,
+            priority_score=priority_score
         )
 
     except Exception as e:
@@ -236,7 +274,12 @@ def customer_panel():
         cursor.close()
         conn.close()
 
-
+def calculate_priority_score(customer_info):
+    """Müşteri öncelik skorunu hesaplayan örnek fonksiyon."""
+    budget = customer_info.get('Budget', 0)
+    customer_type = customer_info.get('CustomerType', 'Normal')
+    base_score = 10 if customer_type == 'Premium' else 5
+    return base_score + budget // 1000  # Örnek hesaplama
 
 @app.route('/add-to-cart', methods=['POST'])
 def add_to_cart():
@@ -419,6 +462,78 @@ def admin_panel():
     except Exception as e:
         log_action(session.get('user_id'), "Error", f"Admin panel hatası: {str(e)}")
         return f"Hata: {e}", 500
+
+@app.route('/admin/approve-order', methods=['POST'])
+def approve_order():
+    """
+    Sipariş onayı, bekleme süresi hesaplama ve öncelik skorunu güncelleme.
+    """
+    order_id = request.form.get('order_id')
+
+    try:
+        conn = get_database_connection()
+        cursor = conn.cursor()
+
+        # Siparişin detaylarını al
+        cursor.execute("SELECT * FROM Orders WHERE OrderID = %s", (order_id,))
+        order = cursor.fetchone()
+
+        if not order:
+            return jsonify({"success": False, "error": "Sipariş bulunamadı!"})
+
+        if order['OrderStatus'] == 'Tamamlandı':
+            return jsonify({"success": False, "error": "Sipariş zaten onaylanmış."})
+
+        # Onay zamanı
+        approval_time = datetime.now()
+
+        # Bekleme süresini hesapla
+        order_date = order['OrderDate']
+        waiting_time_seconds = (approval_time - order_date).total_seconds()
+
+        # Sipariş durumunu ve onay zamanını güncelle
+        cursor.execute("""
+            UPDATE Orders
+            SET OrderStatus = 'Tamamlandı', ApprovalDate = %s
+            WHERE OrderID = %s
+        """, (approval_time, order_id))
+
+        # Öncelik skoru için müşteri bilgilerini al
+        cursor.execute("SELECT * FROM Customers WHERE CustomerID = %s", (order['CustomerID'],))
+        customer = cursor.fetchone()
+
+        if not customer:
+            return jsonify({"success": False, "error": "Müşteri bulunamadı!"})
+
+        # Öncelik skoru hesaplama
+        base_priority_score = 15 if customer['CustomerType'] == 'Premium' else 10
+        waiting_time_weight = 0.5  # Her bir saniye bekleme ağırlığı
+        new_priority_score = base_priority_score + (waiting_time_seconds * waiting_time_weight)
+
+        # Öncelik skorunu güncelle
+        cursor.execute("""
+            UPDATE Customers
+            SET PriorityScore = %s
+            WHERE CustomerID = %s
+        """, (new_priority_score, customer['CustomerID']))
+
+        # Log kaydı oluştur
+        log_message = (
+            f"Sipariş {order_id} onaylandı. Bekleme süresi: {waiting_time_seconds} saniye. "
+            f"Yeni öncelik skoru: {new_priority_score:.2f}"
+        )
+        log_action(order['CustomerID'], "Bilgilendirme", log_message)
+
+        conn.commit()
+
+        return jsonify({"success": True, "message": "Sipariş onaylandı!", "waiting_time": waiting_time_seconds})
+
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)})
+
+    finally:
+        cursor.close()
+        conn.close()
 
 
 # Ürün Ekleme
@@ -709,6 +824,17 @@ def checkout_cart():
 
         conn = get_database_connection()
         cursor = conn.cursor()
+        
+        # Sepet toplamını al
+        cursor.execute("SELECT SUM(TotalPrice) AS CartTotal FROM Cart WHERE CustomerID = %s", (customer_id,))
+        cart_total = cursor.fetchone()['CartTotal']
+
+        # Müşteri bütçesini kontrol et
+        cursor.execute("SELECT Budget FROM Customers WHERE CustomerID = %s", (customer_id,))
+        budget = cursor.fetchone()['Budget']
+
+        if cart_total > budget:
+            return jsonify({"success": False, "error": "Bütçenizi aşıyor, lütfen sepeti güncelleyin!"})
 
         # Sepeti al
         cursor.execute("""
@@ -727,6 +853,12 @@ def checkout_cart():
                 INSERT INTO Orders (CustomerID, ProductID, Quantity, TotalPrice, OrderStatus)
                 VALUES (%s, %s, %s, %s, 'Pending')
             """, (customer_id, item['ProductID'], item['Quantity'], item['TotalPrice']))
+        
+        cursor.execute("""
+            UPDATE Customers
+            SET LastOrderDate = NOW()
+            WHERE CustomerID = %s
+        """, (customer_id,))
 
         # Sepeti temizle (stok düşülmeden)
         cursor.execute("DELETE FROM Cart WHERE CustomerID = %s", (customer_id,))
@@ -757,6 +889,12 @@ def log_request(response):
     except Exception as e:
         print(f"After request loglama hatası: {e}")
     return response
+
+@app.route('/cleanup-cart', methods=['POST'])
+def cleanup_cart():
+    customer.remove_expired_cart_items()
+    return jsonify({"success": True, "message": "Eski sepet ürünleri temizlendi."})
+
 
 # Çıkış Yapma
 @app.route('/logout', methods=['POST'])

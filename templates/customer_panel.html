@@ -5,6 +5,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Müşteri Paneli</title>
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='rb_2593.png') }}">
+
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
         body {
@@ -66,6 +68,21 @@
             color: #bdc3c7;
             font-size: 0.9rem;
         }
+
+        .table-success {
+            background-color: #28a745;
+            color: #fff;
+        }
+
+        .table-warning {
+            background-color: #ffc107;
+            color: #212529;
+        }
+
+        .table-danger {
+            background-color: #dc3545;
+            color: #fff;
+        }
     </style>
 </head>
 
@@ -83,9 +100,13 @@
                 <h3>Hoş Geldiniz, {{ customer_info.CustomerName }}</h3>
             </div>
             <div class="card-body">
-                <p><strong>Müşteri Türü:</strong> {{ customer_info.CustomerType }}</p>
-                <p><strong>Bütçe:</strong> {{ customer_info.Budget }} TL</p>
-                <p><strong>Öncelik Skoru:</strong> {{ customer_info.PriorityScore }}</p>
+                <p><strong>Müşteri Türü:</strong> <span id="customer-type">{{ customer_info.CustomerType }}</span></p>
+                <p><strong>Bütçe:</strong> <span id="customer-budget">{{ customer_info.Budget }} TL</span></p>
+                <p><strong>Bekleme Süresi:</strong> <span id="waiting-time">{{ customer_info.Waiting_Time or
+                        'Hesaplanıyor...' }}</span></p>
+                <p><strong>Öncelik Skoru:</strong> <span id="priority-score">{{ customer_info.PriorityScore }}</span>
+                </p>
+
             </div>
         </div>
 
@@ -151,7 +172,8 @@
                     <tbody>
                         {% if orders %}
                         {% for order in orders %}
-                        <tr>
+                        <tr
+                            class="{% if order.OrderStatus == 'Tamamlandı' %}table-success{% elif order.OrderStatus == 'İşleniyor' %}table-warning{% else %}table-danger{% endif %}">
                             <td>{{ order.OrderID }}</td>
                             <td>{{ order.ProductName }}</td>
                             <td>{{ order.Quantity }}</td>
@@ -178,6 +200,24 @@
             document.querySelector('#cart-section').innerHTML = cartHtml;
             bindRemoveFromCartButtons();
         }
+        
+        function updateCustomerInfo() {
+            fetch('/customer-info')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        document.querySelector('#customer-name').textContent = `Hoş Geldiniz, ${data.customer_name}`;
+                        document.querySelector('#customer-type').textContent = data.customer_type;
+                        document.querySelector('#customer-budget').textContent = data.customer_budget;
+                        document.querySelector('#priority-score').textContent = data.priority_score;
+                        document.querySelector('#waiting-time').textContent = data.waiting_time;
+                    }
+                })
+                .catch(error => console.error('Hata:', error));
+        }
+
+        // Bilgileri her 5 saniyede bir güncelle
+        setInterval(updateCustomerInfo, 5000);
 
         document.querySelectorAll('.add-to-cart').forEach(button => {
             button.addEventListener('click', function () {

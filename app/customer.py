@@ -87,39 +87,44 @@ def update_all_customers_priority():
     except Exception as err:
         print(f"Tüm müşteriler için öncelik skoru güncellenirken hata oluştu: {err}")
 
-
-import time
-
-def calculate_priority_score(customer_id, order_time):
+def remove_expired_cart_items():
     try:
         conn = get_database_connection()
         cursor = conn.cursor()
 
-        # Müşteri bilgilerini al
-        cursor.execute("SELECT CustomerType FROM Customers WHERE CustomerID = %s", (customer_id,))
-        customer = cursor.fetchone()
+        # 20 saniyeden eski ürünleri sepetten kaldır
+        cursor.execute("""
+            DELETE FROM Cart 
+            WHERE TIMESTAMPDIFF(SECOND, AddedTime, NOW()) > 20
+        """)
 
-        if not customer:
-            return
-
-        customer_type = customer['CustomerType']
-        base_score = 15 if customer_type == "Premium" else 10
-
-        # Bekleme süresi hesaplama
-        current_time = time.time()
-        waiting_time = current_time - order_time
-        waiting_weight = 0.5
-        waiting_score = waiting_time * waiting_weight
-
-        # Toplam öncelik skoru
-        priority_score = base_score + waiting_score
-
-        # Veritabanında güncelle
-        cursor.execute("UPDATE Customers SET PriorityScore = %s WHERE CustomerID = %s", (priority_score, customer_id))
         conn.commit()
+    finally:
+        cursor.close()
         conn.close()
-    except Exception as e:
-        print(f"Hata: {e}")
+
+
+import time
+
+def calculate_priority_score(customer, current_time):
+    """
+    Müşteri öncelik skorunu hesaplar.
+    """
+    # Temel öncelik skoru
+    base_priority = 15 if customer['CustomerType'] == 'Premium' else 10
+
+    # Bekleme süresi
+    if customer['LastOrderDate']:
+        waiting_time_seconds = (current_time - customer['LastOrderDate']).total_seconds()
+    else:
+        waiting_time_seconds = 0
+
+    # Bekleme süresi ağırlığı
+    waiting_time_weight = 0.5
+
+    # Dinamik öncelik skoru
+    return base_priority + int(waiting_time_seconds * waiting_time_weight)
+
 
 
 
