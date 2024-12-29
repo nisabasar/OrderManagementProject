@@ -125,9 +125,6 @@ def calculate_priority_score(customer, current_time):
     # Dinamik öncelik skoru
     return base_priority + int(waiting_time_seconds * waiting_time_weight)
 
-
-
-
 def get_sorted_customers():
     try:
         conn = get_database_connection()

@@ -120,6 +120,40 @@ def add_product():
         cursor.close()
         conn.close()
 
+@app.route('/get-customers', methods=['GET'])
+def get_customers():
+    try:
+        conn = get_database_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute("""
+            SELECT CustomerID, CustomerName, CustomerType, Budget, WaitingTime, PriorityScore
+            FROM Customers
+        """)
+        customers = cursor.fetchall()
+
+        return jsonify({
+            "success": True,
+            "customers": [
+                {
+                    "CustomerID": customer[0],
+                    "CustomerName": customer[1],
+                    "CustomerType": customer[2],
+                    "Budget": customer[3],
+                    "WaitingTime": customer[4],
+                    "PriorityScore": customer[5],
+                }
+                for customer in customers
+            ],
+        })
+
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)})
+
+    finally:
+        cursor.close()
+        conn.close()
+
 
 
 
@@ -242,7 +276,7 @@ def register():
 
             conn.commit()
             log_action(user_id, "Info", f"Yeni müşteri kaydedildi: {customer_name}")
-            return redirect(url_for('login'))
+            return render_template('login.html')
 
         except Exception as e:
             error_message = f"Kayıt hatası: {e}"
@@ -255,6 +289,109 @@ def register():
             conn.close()
 
     return render_template('register.html')
+
+@app.route('/approve-all-orders', methods=['POST'])
+def approve_all_orders():
+    try:
+        conn = get_database_connection()
+        cursor = conn.cursor()
+
+        # Sadece "Pending" durumundaki siparişleri onayla
+        cursor.execute("""
+            UPDATE Orders
+            SET OrderStatus = 'Approved'
+            WHERE OrderStatus = 'Pending'
+        """)
+        conn.commit()
+
+        # Kalan "Pending" siparişleri çek
+        cursor.execute("SELECT * FROM Orders WHERE OrderStatus = 'Pending'")
+        pending_orders = cursor.fetchall()
+
+        return jsonify({
+            "success": True,
+            "message": "Tüm bekleyen siparişler onaylandı.",
+            "orders": pending_orders
+        })
+
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)})
+
+    finally:
+        cursor.close()
+        conn.close()
+
+
+
+@app.route('/reject-all-orders', methods=['POST'])
+def reject_all_orders():
+    try:
+        conn = get_database_connection()
+        cursor = conn.cursor()
+
+        # Sadece "Pending" durumundaki siparişleri reddet
+        cursor.execute("""
+            UPDATE Orders
+            SET OrderStatus = 'Rejected'
+            WHERE OrderStatus = 'Pending'
+        """)
+        conn.commit()
+
+        # Kalan "Pending" siparişleri çek
+        cursor.execute("SELECT * FROM Orders WHERE OrderStatus = 'Pending'")
+        pending_orders = cursor.fetchall()
+
+        return jsonify({
+            "success": True,
+            "message": "Tüm bekleyen siparişler reddedildi.",
+            "orders": pending_orders
+        })
+
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)})
+
+    finally:
+        cursor.close()
+        conn.close()
+
+def update_priority_scores():
+    try:
+        conn = get_database_connection()
+        cursor = conn.cursor()
+
+        # Tüm müşterilerin bekleme süresini ve öncelik skorunu güncelle
+        cursor.execute("""
+            SELECT CustomerID, CustomerType, TIMESTAMPDIFF(SECOND, OrderDate, NOW()) AS WaitingTime
+            FROM Orders
+            WHERE OrderStatus = 'Pending'
+        """)
+        pending_orders = cursor.fetchall()
+
+        for order in pending_orders:
+            customer_id = order['CustomerID']
+            customer_type = order['CustomerType']
+            waiting_time = order['WaitingTime']
+
+            # Temel öncelik skoru
+            base_priority = 15 if customer_type == 'Premium' else 10
+            priority_score = base_priority + (waiting_time * 0.5)
+
+            # Müşteri tablosunu güncelle
+            cursor.execute("""
+                UPDATE Customers
+                SET PriorityScore = %s, WaitingTime = %s
+                WHERE CustomerID = %s
+            """, (priority_score, waiting_time, customer_id))
+
+        conn.commit()
+
+    except Exception as e:
+        print(f"Öncelik skoru güncelleme hatası: {e}")
+
+    finally:
+        cursor.close()
+        conn.close()
+
 
 @app.route('/customer-orders', methods=['GET'])
 def customer_orders():
@@ -373,12 +510,6 @@ def customer_panel():
         cursor.close()
         conn.close()
 
-def calculate_priority_score(customer_info):
-    """Müşteri öncelik skorunu hesaplayan örnek fonksiyon."""
-    budget = customer_info.get('Budget', 0)
-    customer_type = customer_info.get('CustomerType', 'Normal')
-    base_score = 10 if customer_type == 'Premium' else 5
-    return base_score + budget // 1000  # Örnek hesaplama
 
 @app.route('/add-to-cart', methods=['POST'])
 def add_to_cart():
@@ -523,14 +654,15 @@ def admin_panel():
         cursor.execute("SELECT * FROM Products WHERE Stock < 10")
         critical_products = cursor.fetchall()
 
-        # Siparişleri çek
+        # Sadece "Pending" durumundaki siparişleri çek
         cursor.execute("""
             SELECT o.OrderID, c.CustomerName, p.ProductName, o.Quantity, o.TotalPrice, o.OrderStatus
             FROM Orders o
             JOIN Customers c ON o.CustomerID = c.CustomerID
             JOIN Products p ON o.ProductID = p.ProductID
+            WHERE o.OrderStatus = 'Pending'
         """)
-        orders = cursor.fetchall()
+        pending_orders = cursor.fetchall()
 
         # Müşterileri çek
         cursor.execute("""
@@ -553,7 +685,7 @@ def admin_panel():
             'admin_panel.html',
             products=products,
             critical_products=critical_products,
-            orders=orders,
+            orders=pending_orders,
             customers=customers,
             logs=logs
         )
@@ -757,38 +889,40 @@ def calculate_priority_score(customer_id):
         conn = get_database_connection()
         cursor = conn.cursor()
 
-        # Bekleyen siparişlerin bekleme süresini hesapla
+        # Bekleme süresi (OrderDate ile şu anki zaman arasındaki fark)
         cursor.execute("""
-            SELECT TIMESTAMPDIFF(MINUTE, o.OrderDate, NOW()) AS WaitingTime
+            SELECT TIMESTAMPDIFF(SECOND, o.OrderDate, NOW()) AS WaitingTime
             FROM Orders o
             WHERE o.CustomerID = %s AND o.OrderStatus = 'Pending'
         """, (customer_id,))
-        waiting_times = cursor.fetchall()
+        waiting_time = cursor.fetchone()['WaitingTime'] or 0
 
-        # Müşterinin toplam harcamalarını al
-        cursor.execute("""
-            SELECT SUM(TotalPrice) AS TotalSpent
-            FROM Orders
-            WHERE CustomerID = %s
-        """, (customer_id,))
-        total_spent = cursor.fetchone()['TotalSpent'] or 0
+        # Müşteri türü
+        cursor.execute("SELECT CustomerType FROM Customers WHERE CustomerID = %s", (customer_id,))
+        customer_type = cursor.fetchone()['CustomerType']
 
-        # Öncelik skoru formülü
-        priority_score = 10  # Varsayılan temel öncelik
-        priority_score += sum(waiting_time['WaitingTime'] for waiting_time in waiting_times) * 0.1
-        priority_score += total_spent * 0.05
+        # Temel Öncelik Skoru
+        base_priority_score = 15 if customer_type == 'Premium' else 10
 
-        # Öncelik skorunu müşteriye kaydet
+        # Öncelik Skoru Hesabı
+        waiting_time_weight = 0.5  # Bekleme süresi ağırlığı
+        priority_score = base_priority_score + (waiting_time * waiting_time_weight)
+
+        # Öncelik skorunu güncelle
         cursor.execute("""
             UPDATE Customers
             SET PriorityScore = %s
             WHERE CustomerID = %s
         """, (priority_score, customer_id))
         conn.commit()
-        conn.close()
 
     except Exception as e:
         print(f"Öncelik skoru hesaplanırken hata: {e}")
+    finally:
+        cursor.close()
+        conn.close()
+
+
 
 @app.route('/admin/logs', methods=['POST'])
 def admin_logs():
@@ -807,7 +941,153 @@ def admin_logs():
         return render_template('admin_panel.html', logs=logs, log_filter=log_type)
     except Exception as e:
         return f"Hata: {e}", 500
-    
+
+@app.route('/process-all-orders', methods=['POST'])
+def process_all_orders():
+    try:
+        conn = get_database_connection()
+        cursor = conn.cursor()
+
+        # Beklemede olan tüm siparişleri öncelik sırasına göre al
+        cursor.execute("""
+            SELECT o.OrderID, o.CustomerID, o.ProductID, o.Quantity, o.TotalPrice, p.Stock, c.Budget, c.CustomerType
+            FROM Orders o
+            JOIN Products p ON o.ProductID = p.ProductID
+            JOIN Customers c ON o.CustomerID = c.CustomerID
+            WHERE o.OrderStatus = 'Pending'
+            ORDER BY 
+                CASE c.CustomerType 
+                    WHEN 'Premium' THEN 1 
+                    ELSE 2 
+                END, 
+                o.OrderDate ASC
+        """)
+        orders = cursor.fetchall()
+
+        if not orders:
+            return jsonify({"success": False, "message": "Beklemede sipariş bulunamadı."})
+
+        # Siparişleri işleme
+        for order in orders:
+            product_stock = order['Stock']
+            customer_budget = order['Budget']
+            total_price = order['TotalPrice']
+
+            if product_stock >= order['Quantity'] and customer_budget >= total_price:
+                # Siparişi tamamla
+                cursor.execute("""
+                    UPDATE Orders
+                    SET OrderStatus = 'Completed'
+                    WHERE OrderID = %s
+                """, (order['OrderID'],))
+
+                # Stok güncelle
+                cursor.execute("""
+                    UPDATE Products
+                    SET Stock = Stock - %s
+                    WHERE ProductID = %s
+                """, (order['Quantity'], order['ProductID']))
+
+                # Bütçe güncelle
+                cursor.execute("""
+                    UPDATE Customers
+                    SET Budget = Budget - %s
+                    WHERE CustomerID = %s
+                """, (total_price, order['CustomerID']))
+
+                # Log ekle
+                log_action(order['CustomerID'], "Bilgilendirme", f"Sipariş (ID: {order['OrderID']}) başarıyla tamamlandı.")
+            else:
+                # Siparişi başarısız olarak işaretle
+                cursor.execute("""
+                    UPDATE Orders
+                    SET OrderStatus = 'Failed'
+                    WHERE OrderID = %s
+                """, (order['OrderID'],))
+
+                # Log ekle
+                log_action(order['CustomerID'], "Hata", f"Sipariş (ID: {order['OrderID']}) başarısız oldu. Stok veya bütçe yetersiz.")
+
+        conn.commit()
+        return jsonify({"success": True, "message": "Tüm bekleyen siparişler başarıyla işlendi."})
+
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)})
+
+    finally:
+        cursor.close()
+        conn.close()
+
+
+@app.route('/process-orders', methods=['POST'])
+def process_orders():
+    try:
+        conn = get_database_connection()
+        cursor = conn.cursor()
+
+        # Bekleyen siparişleri öncelik skoruna göre sırala
+        cursor.execute("""
+            SELECT o.OrderID, o.CustomerID, o.ProductID, o.Quantity, o.TotalPrice, c.PriorityScore, p.Stock, c.Budget
+            FROM Orders o
+            JOIN Customers c ON o.CustomerID = c.CustomerID
+            JOIN Products p ON o.ProductID = p.ProductID
+            WHERE o.OrderStatus = 'Pending'
+            ORDER BY c.PriorityScore DESC, o.OrderDate ASC
+        """)
+        orders = cursor.fetchall()
+
+        processed_orders = []
+        for order in orders:
+            product_stock = order['Stock']
+            customer_budget = order['Budget']
+            total_price = order['TotalPrice']
+
+            if product_stock >= order['Quantity'] and customer_budget >= total_price:
+                # Siparişi tamamla (Completed)
+                cursor.execute("""
+                    UPDATE Orders
+                    SET OrderStatus = 'Completed'
+                    WHERE OrderID = %s
+                """, (order['OrderID'],))
+
+                # Stok miktarını güncelle
+                cursor.execute("""
+                    UPDATE Products
+                    SET Stock = Stock - %s
+                    WHERE ProductID = %s
+                """, (order['Quantity'], order['ProductID']))
+
+                # Müşteri bütçesini güncelle
+                cursor.execute("""
+                    UPDATE Customers
+                    SET Budget = Budget - %s
+                    WHERE CustomerID = %s
+                """, (total_price, order['CustomerID']))
+
+                processed_orders.append(order)
+            else:
+                # Siparişi başarısız yap (Failed)
+                cursor.execute("""
+                    UPDATE Orders
+                    SET OrderStatus = 'Failed'
+                    WHERE OrderID = %s
+                """, (order['OrderID'],))
+
+        conn.commit()
+
+        return jsonify({
+            "success": True,
+            "message": "Siparişler işlendi.",
+            "processed_orders": processed_orders
+        })
+
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)})
+    finally:
+        cursor.close()
+        conn.close()
+
+  
 @app.route('/products', methods=['GET'])
 def get_products():
     """Tüm ürünleri listele."""
