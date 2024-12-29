@@ -1,66 +1,104 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='rb_2593.png') }}">
     <title>Admin Ekle</title>
     <style>
+        /* Genel sayfa stili */
         body {
-            font-family: Arial, sans-serif;
-            background: linear-gradient(120deg, #1abc9c, #16a085);
+            font-family: 'Arial', sans-serif;
+            background: radial-gradient(circle, #2c3e50, #1a252f);
+            color: #ecf0f1;
             height: 100vh;
             margin: 0;
             display: flex;
             justify-content: center;
             align-items: center;
         }
+
+        /* Ana ekleme kutusu */
         .add-admin-container {
-            background: white;
-            border-radius: 10px;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            background: #1a252f;
+            border: 1px solid #34495e;
+            border-radius: 15px;
+            box-shadow: 0 8px 15px rgba(0, 0, 0, 0.5);
             padding: 30px;
             width: 400px;
             text-align: center;
         }
+
+        /* Başlık stili */
         .add-admin-container h1 {
-            color: #333;
+            font-size: 1.8rem;
+            color: #ecf0f1;
             margin-bottom: 20px;
-            font-size: 24px;
+            font-weight: bold;
         }
+
+        /* Input alanları */
         .add-admin-container input {
             width: 90%;
-            padding: 10px;
-            margin: 10px 0;
-            border: 1px solid #ccc;
-            border-radius: 5px;
-            font-size: 16px;
-        }
-        .add-admin-container button {
-            background: #1abc9c;
-            color: white;
+            padding: 12px;
+            margin: 15px 0;
+            background: #34495e;
             border: none;
-            padding: 10px 20px;
-            font-size: 16px;
-            border-radius: 5px;
+            border-radius: 10px;
+            color: #ecf0f1;
+            font-size: 1rem;
+        }
+
+        .add-admin-container input:focus {
+            outline: none;
+            box-shadow: 0 0 10px #2980b9;
+        }
+
+        /* Buton stili */
+        .add-admin-container button {
+            width: 90%;
+            background: #2980b9;
+            color: #ecf0f1;
+            border: none;
+            padding: 12px;
+            font-size: 1rem;
+            border-radius: 10px;
             cursor: pointer;
-            transition: background 0.3s;
-        }
-        .add-admin-container button:hover {
-            background: #16a085;
-        }
-        .add-admin-container a {
-            display: block;
             margin-top: 15px;
-            text-decoration: none;
-            color: #1abc9c;
-            font-weight: bold;
-            transition: color 0.3s;
+            transition: all 0.3s ease-in-out;
         }
+
+        .add-admin-container button:hover {
+            background: #1abc9c;
+        }
+
+        /* Admin Paneline dön linki */
+        .add-admin-container a {
+            display: inline-block;
+            margin-top: 20px;
+            color: #1abc9c;
+            font-size: 0.95rem;
+            text-decoration: none;
+            transition: color 0.3s ease-in-out;
+        }
+
         .add-admin-container a:hover {
-            color: #148f77;
+            color: #16a085;
+        }
+
+        /* Alt bilgi */
+        .footer {
+            position: absolute;
+            bottom: 10px;
+            width: 100%;
+            text-align: center;
+            color: #95a5a6;
+            font-size: 0.85rem;
         }
     </style>
 </head>
+
 <body>
     <div class="add-admin-container">
         <h1>Admin Ekle</h1>
@@ -69,7 +107,9 @@
             <input type="password" name="password" placeholder="Şifre" required>
             <button type="submit">Admin Ekle</button>
         </form>
-        <a href="/admin-dashboard">Admin Paneline Dön</a>
+        <a href="/admin-panel">Admin Paneline Dön</a>
     </div>
+    <div class="footer">© 2024 - Tüm Hakları Saklıdır</div>
 </body>
+
 </html>

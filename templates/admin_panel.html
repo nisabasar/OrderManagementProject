@@ -5,131 +5,457 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin Paneli</title>
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='rb_2593.png') }}">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         body {
             font-family: Arial, sans-serif;
-            background: linear-gradient(120deg, #3498db, #2ecc71);
-            color: #333;
-            margin: 0;
-            padding: 0;
+            background: #1e272e;
+            color: #ecf0f1;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
         }
 
-        .container {
-            max-width: 1200px;
-            margin: 20px auto;
-            background: white;
-            border-radius: 10px;
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
-            padding: 20px;
-        }
-
-        h1, h2 {
-            text-align: center;
-            color: #2ecc71;
-        }
-
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin: 20px 0;
-        }
-
-        table th, table td {
-            border: 1px solid #ddd;
-            padding: 10px;
-            text-align: center;
-        }
-
-        table th {
-            background-color: #2ecc71;
-            color: white;
-            font-weight: bold;
-        }
-
-        form {
-            margin: 20px 0;
-        }
-
-        select, input, button {
-            width: 100%;
-            padding: 10px;
-            margin: 10px 0;
-            border-radius: 5px;
-            border: 1px solid #ddd;
-            font-size: 1rem;
-        }
-
-        button {
-            background-color: #1abc9c;
-            color: white;
+        .card {
+            background: #2f3640;
+            color: #ecf0f1;
             border: none;
-            cursor: pointer;
-            font-weight: bold;
-            transition: background-color 0.3s;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
         }
 
-        button:hover {
-            background-color: #16a085;
+        .card-header {
+            background: #00a8ff;
+            border-radius: 10px 10px 0 0;
+            font-weight: bold;
+            text-align: center;
+        }
+
+        .btn {
+            background: #273c75;
+            border: none;
+            color: white;
+        }
+
+        .btn:hover {
+            background: #192a56;
+        }
+
+        .btn-danger {
+            background: #e84118;
+        }
+
+        .btn-danger:hover {
+            background: #c23616;
+        }
+
+        footer {
+            margin-top: auto;
+            text-align: center;
+            color: #bdc3c7;
+            font-size: 0.9rem;
+            background: #2f3640;
+            padding: 10px 0;
+            position: sticky;
+            bottom: 0;
+            width: 100%;
+        }
+
+        .table-container {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .chart-container {
+            width: 100%;
+            height: 400px;
+            margin-top: 20px;
+        }
+
+        h1.text-primary {
+            color: #6c5ce7 !important;
+            font-size: 2rem;
+            font-weight: 500;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .admin-buttons {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 20px;
         }
     </style>
 </head>
 
 <body>
-    <div class="container">
-        <h1>Admin Paneli</h1>
+    <div class="container mt-4">
+        <h1 class="text-center text-primary">Admin Paneli</h1>
 
-        <!-- Ürün Yönetimi -->
-        <h2>Ürün Yönetimi</h2>
-        <form method="POST" action="/add-product">
-            <input type="text" name="product_name" placeholder="Ürün Adı" required>
-            <input type="number" name="stock" placeholder="Stok" min="1" required>
-            <input type="number" name="price" placeholder="Fiyat (TL)" step="0.01" required>
-            <button type="submit">Ürün Ekle</button>
-        </form>
+        <div class="admin-buttons">
+            <a href="/add-admin" class="btn btn-primary">Admin Ekle</a>
+            <form method="POST" action="/logout">
+                <button type="submit" class="btn btn-danger">Çıkış Yap</button>
+            </form>
+        </div>
 
-        <!-- Sipariş Yönetimi -->
-        <h2>Siparişler</h2>
-        <table>
-            <thead>
-                <tr>
-                    <th>Sipariş ID</th>
-                    <th>Müşteri Adı</th>
-                    <th>Durum</th>
-                    <th>İşlem</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for order in orders %}
-                <tr>
-                    <td>{{ order.OrderID }}</td>
-                    <td>{{ order.CustomerName }}</td>
-                    <td>{{ order.OrderStatus }}</td>
-                    <td>
-                        <form method="POST" action="/approve-order" style="display:inline;">
-                            <input type="hidden" name="order_id" value="{{ order.OrderID }}">
-                            <button type="submit">Onayla</button>
-                        </form>
-                        <form method="POST" action="/reject-order" style="display:inline;">
-                            <input type="hidden" name="order_id" value="{{ order.OrderID }}">
-                            <button type="submit">Reddet</button>
-                        </form>
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+        <!-- Yönetim Butonları -->
+        <div class="text-center mb-4">
+            <button class="btn btn-success" id="productPanelButton">Ürün Paneli</button>
+            <button class="btn btn-primary" id="customerPanelButton">Müşteri Listesi</button>
+            <button class="btn btn-warning" id="orderPanelButton">Sipariş Paneli</button>
+            <button class="btn btn-info" id="logPanelButton">Log Paneli</button>
+        </div>
 
-        <!-- Log Görüntüleme -->
-        <h2>Log Yönetimi</h2>
-        <form method="POST" action="/filter-logs">
-            <select name="log_type">
-                <option value="All">Tüm Loglar</option>
-                <option value="Error">Hatalar</option>
-                <option value="Info">Bilgiler</option>
-            </select>
-            <button type="submit">Filtrele</button>
-        </form>
+        <!-- Ürün Paneli -->
+        <div id="productPanel" class="hidden">
+            <!-- Ürün Yönetimi -->
+            <div class="card mb-4">
+                <div class="card-header">Ürün Yönetimi</div>
+                <div class="card-body">
+                    <form method="POST" action="/add-product" class="row">
+                        <div class="col-md-4">
+                            <input type="text" name="product_name" placeholder="Ürün Adı" class="form-control" required>
+                        </div>
+                        <div class="col-md-3">
+                            <input type="number" name="stock" placeholder="Stok" min="1" class="form-control" required>
+                        </div>
+                        <div class="col-md-3">
+                            <input type="number" name="price" placeholder="Fiyat (TL)" step="0.01" class="form-control"
+                                required>
+                        </div>
+                        <div class="col-md-2">
+                            <button type="submit" class="btn btn-success w-100">Ürün Ekle</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Ürün Silme -->
+            <div class="card mb-4">
+                <div class="card-header">Ürün Silme</div>
+                <div class="card-body">
+                    <!-- Formu id ile işaretliyoruz -->
+                    <form id="deleteProductForm" class="row">
+                        <div class="col-md-10">
+                            <select id="deleteProductSelect" name="product_id" class="form-control" required>
+                                {% for product in products %}
+                                <option value="{{ product.ProductID }}">{{ product.ProductName }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <button type="submit" class="btn btn-danger w-100">Ürün Sil</button>
+                        </div>
+                    </form>
+                    <div id="deleteMessage" class="mt-3"></div> <!-- Mesaj göstermek için bir div -->
+                </div>
+            </div>
+
+            <!-- Stok Güncelleme -->
+            <div class="card mb-4">
+                <div class="card-header">Stok Güncelleme</div>
+                <div class="card-body">
+                    <form id="updateStockForm" class="row">
+                        <div class="col-md-6">
+                            <select name="product_id" id="productSelect" class="form-control" required>
+                                {% for product in products %}
+                                <option value="{{ product.ProductID }}">{{ product.ProductName }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <input type="number" id="newStockInput" name="new_stock" placeholder="Yeni Stok" min="1"
+                                class="form-control" required>
+                        </div>
+                        <div class="col-md-2">
+                            <button type="submit" class="btn btn-success w-100">Güncelle</button>
+                        </div>
+                    </form>
+                    <div id="stockUpdateMessage" class="mt-3"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Diğer tablolar ve grafikler -->
+        <div class="card mb-4">
+            <div class="card-header">Kritik Ürünler (Stok < 10)</div>
+                    <div class="card-body table-container">
+                        <table class="table table-dark table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Ürün Adı</th>
+                                    <th>Stok</th>
+                                    <th>Fiyat</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for product in critical_products %}
+                                <tr>
+                                    <td>{{ product.ProductName }}</td>
+                                    <td>{{ product.Stock }}</td>
+                                    <td>{{ product.Price }} TL</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+            </div>
+
+            <div class="card mb-4">
+                <div class="card-header">Ürün Stok Grafiği</div>
+                <div class="card-body chart-container">
+                    <canvas id="productStockChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Müşteri Paneli -->
+        <div id="customerPanel" class="hidden">
+            <div class="card mb-4">
+                <div class="card-header">Müşteri Listesi</div>
+                <div class="card-body table-container">
+                    <table class="table table-dark table-striped">
+                        <thead>
+                            <tr>
+                                <th>Müşteri ID</th>
+                                <th>Adı</th>
+                                <th>Tür</th>
+                                <th>Bütçe</th>
+                                <th>Bekleme Süresi</th>
+                                <th>Öncelik Skoru</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for customer in customers %}
+                            <tr>
+                                <td>{{ customer.CustomerID }}</td>
+                                <td>{{ customer.CustomerName }}</td>
+                                <td>{{ customer.CustomerType }}</td>
+                                <td>{{ customer.Budget }}</td>
+                                <td>{{ customer.WaitingTime }}</td>
+                                <td>{{ customer.PriorityScore }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sipariş Paneli -->
+        <div id="orderPanel" class="hidden">
+            <div class="card mb-4">
+                <div class="card-header">Sipariş Yönetimi</div>
+                <div class="card-body table-container">
+                    <table class="table table-dark table-striped">
+                        <thead>
+                            <tr>
+                                <th>Sipariş ID</th>
+                                <th>Müşteri Adı</th>
+                                <th>Durum</th>
+                                <th>İşlem</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for order in orders %}
+                            <tr>
+                                <td>{{ order.OrderID }}</td>
+                                <td>{{ order.CustomerName }}</td>
+                                <td>{{ order.OrderStatus }}</td>
+                                <td>
+                                    <form method="POST" action="/approve-order" style="display:inline;">
+                                        <input type="hidden" name="order_id" value="{{ order.OrderID }}">
+                                        <button type="submit" class="btn btn-success">Onayla</button>
+                                    </form>
+                                    <form method="POST" action="/reject-order" style="display:inline;">
+                                        <input type="hidden" name="order_id" value="{{ order.OrderID }}">
+                                        <button type="submit" class="btn btn-danger">Reddet</button>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Log Paneli -->
+        <div id="logPanel" class="hidden">
+            <div class="card mb-4">
+                <div class="card-header">Log Yönetimi</div>
+                <div class="card-body table-container">
+                    <table class="table table-dark table-striped">
+                        <thead>
+                            <tr>
+                                <th>Log ID</th>
+                                <th>Tür</th>
+                                <th>Detay</th>
+                                <th>Zaman</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for log in logs %}
+                            <tr>
+                                <td>{{ log.LogID }}</td>
+                                <td>{{ log.LogType }}</td>
+                                <td>{{ log.LogDetails }}</td>
+                                <td>{{ log.LogDate }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
     </div>
+
+    <footer>
+        <p>© 2024 Admin Paneli. Tüm hakları saklıdır.</p>
+    </footer>
+
+    <script>
+
+        // Butonlar ile panelleri aç/kapat
+        document.getElementById('productPanelButton').addEventListener('click', function () {
+            document.getElementById('productPanel').classList.remove('hidden');
+            document.getElementById('customerPanel').classList.add('hidden');
+            document.getElementById('orderPanel').classList.add('hidden');
+            document.getElementById('logPanel').classList.add('hidden');
+        });
+
+        document.getElementById('customerPanelButton').addEventListener('click', function () {
+            document.getElementById('customerPanel').classList.remove('hidden');
+            document.getElementById('productPanel').classList.add('hidden');
+            document.getElementById('orderPanel').classList.add('hidden');
+            document.getElementById('logPanel').classList.add('hidden');
+        });
+
+        document.getElementById('orderPanelButton').addEventListener('click', function () {
+            document.getElementById('orderPanel').classList.remove('hidden');
+            document.getElementById('productPanel').classList.add('hidden');
+            document.getElementById('customerPanel').classList.add('hidden');
+            document.getElementById('logPanel').classList.add('hidden');
+        });
+
+        document.getElementById('logPanelButton').addEventListener('click', function () {
+            document.getElementById('logPanel').classList.remove('hidden');
+            document.getElementById('productPanel').classList.add('hidden');
+            document.getElementById('customerPanel').classList.add('hidden');
+            document.getElementById('orderPanel').classList.add('hidden');
+        });
+
+        // Chart.js grafik oluşturma
+        const ctx = document.getElementById('productStockChart').getContext('2d');
+        const productStockChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: [{% for product in products %} '{{ product.ProductName }}', {% endfor %}],
+        datasets: [{
+            label: 'Stok',
+            data: [{% for product in products %} {{ product.Stock }}, {% endfor %}],
+            backgroundColor: [
+                {% for product in products %}
+        {% if product.Stock < 10 %}
+        'rgba(231, 76, 60, 0.8)', /* Kırmızı */
+            {% else %}
+        'rgba(46, 204, 113, 0.8)', /* Yeşil */
+            {% endif %}
+        {% endfor %}
+                    ],
+        borderColor: 'rgba(255, 255, 255, 0.9)',
+            borderWidth: 1
+                }]
+            },
+        options: {
+            responsive: true,
+                plugins: {
+                legend: {
+                    display: false
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true
+                }
+            }
+        }
+        });
+
+
+        document.getElementById('updateStockForm').addEventListener('submit', function (event) {
+            event.preventDefault(); // Sayfa yenilemeyi engelle
+
+            const product_id = document.getElementById('productSelect').value;
+            const new_stock = document.getElementById('newStockInput').value;
+
+            fetch('/update-stock', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ product_id, new_stock }), // JSON formatında veri gönder
+            })
+                .then(response => response.json())
+                .then(data => {
+                    const messageDiv = document.getElementById('stockUpdateMessage');
+                    if (data.success) {
+                        messageDiv.innerHTML = `<div class="alert alert-success">${data.message}</div>`;
+                    } else {
+                        messageDiv.innerHTML = `<div class="alert alert-danger">${data.message}</div>`;
+                    }
+                })
+                .catch(error => {
+                    console.error("Hata:", error);
+                    document.getElementById('stockUpdateMessage').innerHTML =
+                        `<div class="alert alert-danger">Sunucuyla iletişim kurulurken hata oluştu.</div>`;
+                });
+        });
+
+        // Ürün Silme Formu
+        document.getElementById('deleteProductForm').addEventListener('submit', function (event) {
+            event.preventDefault(); // Sayfa yenilemeyi engelle
+
+            const product_id = document.getElementById('deleteProductSelect').value;
+
+            fetch('/delete-product', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ product_id }), // JSON formatında veri gönderiliyor
+            })
+                .then(response => response.json())
+                .then(data => {
+                    const deleteMessageDiv = document.getElementById('deleteMessage');
+                    if (data.success) {
+                        deleteMessageDiv.innerHTML = `<div class="alert alert-success">${data.message}</div>`;
+                        // Başarıyla silinen ürünü listeden kaldır
+                        document.querySelector(`#deleteProductSelect option[value="${product_id}"]`).remove();
+                    } else {
+                        deleteMessageDiv.innerHTML = `<div class="alert alert-danger">${data.message}</div>`;
+                    }
+                })
+                .catch(error => {
+                    console.error("Hata:", error);
+                    document.getElementById('deleteMessage').innerHTML =
+                        `<div class="alert alert-danger">Ürün silinirken hata oluştu.</div>`;
+                });
+        });
+
+        // Tabloyu güncelleme fonksiyonu
+        function updateProductTable(product) {
+            const tableRow = document.querySelector(`#product-row-${product.ProductID}`);
+            if (tableRow) {
+                tableRow.querySelector('.product-stock').textContent = product.Stock;
+            }
+        }
+    </script>
 </body>
 
 </html>
