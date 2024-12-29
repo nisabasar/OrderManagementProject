@@ -150,7 +150,7 @@
                         </thead>
                         <tbody>
                             {% for product in products %}
-                            <tr>
+                            <tr id="product-row-{{ product.ProductID }}">
                                 <td>{{ product.ProductName }}</td>
                                 <td>{{ product.Stock }}</td>
                                 <td>{{ product.Price }} TL</td>
@@ -210,7 +210,7 @@
         <!-- Diğer tablolar ve grafikler -->
         <div class="card mb-4">
             <div class="card-header">Kritik Ürünler (Stok < 10)</div>
-                    <div class="card-body table-container">
+                    <div class="card-body table-container" id="criticalProductsTable">
                         <table class="table table-dark table-striped">
                             <thead>
                                 <tr>
@@ -376,45 +376,44 @@
             document.getElementById('orderPanel').classList.add('hidden');
         });
 
-        // Chart.js grafik oluşturma
         const ctx = document.getElementById('productStockChart').getContext('2d');
         const productStockChart = new Chart(ctx, {
             type: 'bar',
             data: {
                 labels: [{% for product in products %} '{{ product.ProductName }}', {% endfor %}],
-        datasets: [{
-            label: 'Stok',
-            data: [{% for product in products %} {{ product.Stock }}, {% endfor %}],
-            backgroundColor: [
-                {% for product in products %}
-        {% if product.Stock < 10 %}
-        'rgba(231, 76, 60, 0.8)', /* Kırmızı */
-            {% else %}
-        'rgba(46, 204, 113, 0.8)', /* Yeşil */
-            {% endif %}
-        {% endfor %}
+                datasets: [{
+                    label: 'Stok',
+                    data: [{% for product in products %} {{ product.Stock }}, {% endfor %}],
+                    backgroundColor: [
+                        {% for product in products %}
+                        {% if product.Stock < 10 %}
+                        'rgba(231, 76, 60, 0.8)', /* Kırmızı */
+                        {% else %}
+                        'rgba(46, 204, 113, 0.8)', /* Yeşil */
+                        {% endif %}
+                        {% endfor %}
                     ],
-        borderColor: 'rgba(255, 255, 255, 0.9)',
-            borderWidth: 1
+                    borderColor: 'rgba(255, 255, 255, 0.9)',
+                    borderWidth: 1
                 }]
             },
-        options: {
-            responsive: true,
+            options: {
+                responsive: true,
                 plugins: {
-                legend: {
-                    display: false
-                }
-            },
-            scales: {
-                y: {
-                    beginAtZero: true
+                    legend: {
+                        display: false
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true
+                    }
                 }
             }
-        }
         });
 
         document.getElementById('addProductForm').addEventListener('submit', function (event) {
-            event.preventDefault(); // Sayfanın yenilenmesini engeller
+            event.preventDefault();
 
             const productName = document.querySelector('[name="product_name"]').value;
             const stock = document.querySelector('[name="stock"]').value;
@@ -422,112 +421,127 @@
 
             fetch('/add-product', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    product_name: productName,
-                    stock: parseInt(stock),
-                    price: parseFloat(price),
-                }),
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ product_name: productName, stock: parseInt(stock), price: parseFloat(price) }),
             })
-                .then((response) => response.json())
-                .then((data) => {
-                    const messageDiv = document.getElementById('addProductMessage');
+                .then(response => response.json())
+                .then(data => {
                     if (data.success) {
-                        messageDiv.innerHTML = `<div class="alert alert-success">${data.message}</div>`;
-
-                        // Yeni ürünü tabloya ekle
-                        const productTable = document.getElementById('productTable').querySelector('tbody');
-                        const newRow = document.createElement('tr');
-                        newRow.innerHTML = `
-                    <td>${productName}</td>
-                    <td>${stock}</td>
-                    <td>${price} TL</td>
-                `;
-                        productTable.appendChild(newRow);
-
-                        // Formu temizle
-                        document.getElementById('addProductForm').reset();
+                        document.getElementById('addProductMessage').innerHTML = `<div class="alert alert-success">${data.message}</div>`;
+                        updateUI(data.products, data.critical_products);
                     } else {
-                        messageDiv.innerHTML = `<div class="alert alert-danger">${data.message}</div>`;
+                        document.getElementById('addProductMessage').innerHTML = `<div class="alert alert-danger">${data.message}</div>`;
                     }
                 })
-                .catch((error) => {
-                    console.error('Hata:', error);
-                    document.getElementById('addProductMessage').innerHTML =
-                        `<div class="alert alert-danger">Ürün eklenirken hata oluştu.</div>`;
-                });
+                .catch(error => console.error('Hata:', error));
         });
 
 
+
         document.getElementById('updateStockForm').addEventListener('submit', function (event) {
-            event.preventDefault(); // Sayfa yenilemeyi engelle
+            event.preventDefault();
 
             const product_id = document.getElementById('productSelect').value;
             const new_stock = document.getElementById('newStockInput').value;
 
             fetch('/update-stock', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ product_id, new_stock }), // JSON formatında veri gönder
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ product_id, new_stock }),
             })
                 .then(response => response.json())
                 .then(data => {
-                    const messageDiv = document.getElementById('stockUpdateMessage');
                     if (data.success) {
-                        messageDiv.innerHTML = `<div class="alert alert-success">${data.message}</div>`;
+                        document.getElementById('stockUpdateMessage').innerHTML = `<div class="alert alert-success">${data.message}</div>`;
+                        updateUI(data.products, data.critical_products);
                     } else {
-                        messageDiv.innerHTML = `<div class="alert alert-danger">${data.message}</div>`;
+                        document.getElementById('stockUpdateMessage').innerHTML = `<div class="alert alert-danger">${data.message}</div>`;
                     }
                 })
-                .catch(error => {
-                    console.error("Hata:", error);
-                    document.getElementById('stockUpdateMessage').innerHTML =
-                        `<div class="alert alert-danger">Sunucuyla iletişim kurulurken hata oluştu.</div>`;
-                });
+                .catch(error => console.error('Hata:', error));
         });
 
-        // Ürün Silme Formu
+
         document.getElementById('deleteProductForm').addEventListener('submit', function (event) {
-            event.preventDefault(); // Sayfa yenilemeyi engelle
+            event.preventDefault();
 
             const product_id = document.getElementById('deleteProductSelect').value;
 
             fetch('/delete-product', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ product_id }), // JSON formatında veri gönderiliyor
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ product_id }),
             })
                 .then(response => response.json())
                 .then(data => {
-                    const deleteMessageDiv = document.getElementById('deleteMessage');
                     if (data.success) {
-                        deleteMessageDiv.innerHTML = `<div class="alert alert-success">${data.message}</div>`;
-                        // Başarıyla silinen ürünü listeden kaldır
-                        document.querySelector(`#deleteProductSelect option[value="${product_id}"]`).remove();
+                        document.getElementById('deleteMessage').innerHTML = `<div class="alert alert-success">${data.message}</div>`;
+                        updateUI(data.products, data.critical_products);
                     } else {
-                        deleteMessageDiv.innerHTML = `<div class="alert alert-danger">${data.message}</div>`;
+                        document.getElementById('deleteMessage').innerHTML = `<div class="alert alert-danger">${data.message}</div>`;
                     }
                 })
-                .catch(error => {
-                    console.error("Hata:", error);
-                    document.getElementById('deleteMessage').innerHTML =
-                        `<div class="alert alert-danger">Ürün silinirken hata oluştu.</div>`;
-                });
+                .catch(error => console.error('Hata:', error));
         });
 
-        // Tabloyu güncelleme fonksiyonu
-        function updateProductTable(product) {
-            const tableRow = document.querySelector(`#product-row-${product.ProductID}`);
-            if (tableRow) {
-                tableRow.querySelector('.product-stock').textContent = product.Stock;
-            }
+        function updateUI(products, criticalProducts) {
+            // Ürün Tablosunu Güncelle
+            const productTableBody = document.querySelector("#productTable tbody");
+            productTableBody.innerHTML = "";
+            products.forEach(product => {
+                const row = document.createElement("tr");
+                row.id = `product-row-${product.ProductID}`;
+                row.innerHTML = `
+            <td>${product.ProductName}</td>
+            <td>${product.Stock}</td>
+            <td>${product.Price} TL</td>
+        `;
+                productTableBody.appendChild(row);
+            });
+
+            // Ürün Silme Seçeneklerini Güncelle
+            const deleteProductSelect = document.getElementById("deleteProductSelect");
+            deleteProductSelect.innerHTML = "";
+            products.forEach(product => {
+                const option = document.createElement("option");
+                option.value = product.ProductID;
+                option.textContent = product.ProductName;
+                deleteProductSelect.appendChild(option);
+            });
+
+            // Stok Güncelleme Seçeneklerini Güncelle
+            const productSelect = document.getElementById("productSelect");
+            productSelect.innerHTML = "";
+            products.forEach(product => {
+                const option = document.createElement("option");
+                option.value = product.ProductID;
+                option.textContent = product.ProductName;
+                productSelect.appendChild(option);
+            });
+
+            // Kritik Ürünler Tablosunu Güncelle
+            const criticalTableBody = document.querySelector("#criticalProductsTable tbody");
+            criticalTableBody.innerHTML = "";
+            criticalProducts.forEach(product => {
+                const row = document.createElement("tr");
+                row.innerHTML = `
+            <td>${product.ProductName}</td>
+            <td>${product.Stock}</td>
+            <td>${product.Price} TL</td>
+        `;
+                criticalTableBody.appendChild(row);
+            });
+
+            // Grafik Verilerini ve Renklerini Güncelle
+            productStockChart.data.labels = products.map(product => product.ProductName);
+            productStockChart.data.datasets[0].data = products.map(product => product.Stock);
+            productStockChart.data.datasets[0].backgroundColor = products.map(product =>
+                product.Stock < 10 ? 'rgba(231, 76, 60, 0.8)' : 'rgba(46, 204, 113, 0.8)'
+            );
+            productStockChart.update();
         }
+
+
     </script>
 </body>
 

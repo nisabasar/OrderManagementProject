@@ -27,33 +27,30 @@ def log_action(customer_id, log_type, details):
 
 @app.route('/update-stock', methods=['POST'])
 def update_stock():
-    if request.content_type != 'application/json':
-        return jsonify({"success": False, "message": "Content-Type 'application/json' olmalıdır."}), 415
-
     try:
         data = request.get_json()
-        if not data:
-            return jsonify({"success": False, "message": "JSON formatı hatalı veya eksik veri."}), 400
-
-        product_id = data.get('product_id')
-        new_stock = data.get('new_stock')
-
-        if not product_id or not new_stock:
-            return jsonify({"success": False, "message": "Tüm alanlar doldurulmalıdır."}), 400
+        product_id = int(data.get('product_id'))
+        new_stock = int(data.get('new_stock'))
 
         conn = get_database_connection()
         cursor = conn.cursor()
-        cursor.execute(
-            "UPDATE Products SET Stock = %s WHERE ProductID = %s",
-            (new_stock, product_id)
-        )
+        cursor.execute("UPDATE Products SET Stock = %s WHERE ProductID = %s", (new_stock, product_id))
         conn.commit()
 
-        return jsonify({"success": True, "message": "Stok başarıyla güncellendi."})
+        # Güncellenmiş ürünleri ve kritik ürünleri al
+        cursor.execute("SELECT * FROM Products")
+        products = cursor.fetchall()
+        cursor.execute("SELECT * FROM Products WHERE Stock < 10")
+        critical_products = cursor.fetchall()
 
+        return jsonify({
+            "success": True,
+            "message": "Stok başarıyla güncellendi.",
+            "products": products,
+            "critical_products": critical_products
+        })
     except Exception as e:
         return jsonify({"success": False, "message": f"Hata: {str(e)}"}), 500
-
     finally:
         cursor.close()
         conn.close()
@@ -62,75 +59,67 @@ def update_stock():
 
 @app.route('/delete-product', methods=['POST'])
 def delete_product():
-    if request.content_type != 'application/json':
-        return jsonify({"success": False, "message": "Content-Type 'application/json' olmalıdır."}), 415
-
     try:
         data = request.get_json()
-        if not data:
-            return jsonify({"success": False, "message": "JSON formatı hatalı veya eksik veri."}), 400
-
-        product_id = data.get('product_id')
-        if not product_id:
-            return jsonify({"success": False, "message": "Ürün ID belirtilmelidir."}), 400
+        product_id = int(data.get('product_id'))
 
         conn = get_database_connection()
         cursor = conn.cursor()
-
-        # Önce cart tablosundaki ilişkili kayıtları sil
-        cursor.execute("DELETE FROM cart WHERE ProductID = %s", (product_id,))
-
-        # Ardından products tablosundan ürünü sil
-        cursor.execute("DELETE FROM products WHERE ProductID = %s", (product_id,))
+        cursor.execute("DELETE FROM Products WHERE ProductID = %s", (product_id,))
         conn.commit()
 
-        return jsonify({"success": True, "message": "Ürün başarıyla silindi."})
+        # Güncellenmiş ürünleri ve kritik ürünleri al
+        cursor.execute("SELECT * FROM Products")
+        products = cursor.fetchall()
+        cursor.execute("SELECT * FROM Products WHERE Stock < 10")
+        critical_products = cursor.fetchall()
 
+        return jsonify({
+            "success": True,
+            "message": "Ürün başarıyla silindi.",
+            "products": products,
+            "critical_products": critical_products
+        })
     except Exception as e:
-        import traceback
-        error_details = traceback.format_exc()  # Hatanın tam detayını al
-        print(error_details)  # Konsola yazdır
-        return jsonify({"success": False, "message": f"Sunucu hatası: {str(e)}", "details": error_details}), 500
-
+        return jsonify({"success": False, "message": f"Hata: {str(e)}"}), 500
     finally:
         cursor.close()
         conn.close()
 
 @app.route('/add-product', methods=['POST'])
 def add_product():
-    # JSON isteği olup olmadığını kontrol edin
-    if request.content_type == 'application/json':
+    try:
         data = request.get_json()
         product_name = data.get('product_name')
-        stock = data.get('stock')
-        price = data.get('price')
-    else:
-        # Formdan gelen verileri işleyin
-        product_name = request.form.get('product_name')
-        stock = request.form.get('stock')
-        price = request.form.get('price')
+        stock = int(data.get('stock'))
+        price = float(data.get('price'))
 
-    # Doğrulama
-    if not (product_name and stock and price):
-        return jsonify({"success": False, "message": "Tüm alanlar doldurulmalıdır."}), 400
+        if not (product_name and stock and price):
+            return jsonify({"success": False, "message": "Tüm alanlar doldurulmalıdır."}), 400
 
-    try:
         conn = get_database_connection()
         cursor = conn.cursor()
-
-        cursor.execute(
-            "INSERT INTO Products (ProductName, Stock, Price) VALUES (%s, %s, %s)",
-            (product_name, int(stock), float(price)),
-        )
+        cursor.execute("INSERT INTO Products (ProductName, Stock, Price) VALUES (%s, %s, %s)", (product_name, stock, price))
         conn.commit()
-        return jsonify({"success": True, "message": "Ürün başarıyla eklendi."})
 
+        # Güncellenmiş ürünleri ve kritik ürünleri al
+        cursor.execute("SELECT * FROM Products")
+        products = cursor.fetchall()
+        cursor.execute("SELECT * FROM Products WHERE Stock < 10")
+        critical_products = cursor.fetchall()
+
+        return jsonify({
+            "success": True,
+            "message": "Ürün başarıyla eklendi.",
+            "products": products,
+            "critical_products": critical_products
+        })
     except Exception as e:
         return jsonify({"success": False, "message": f"Hata: {str(e)}"}), 500
-
     finally:
         cursor.close()
         conn.close()
+
 
 
 
