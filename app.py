@@ -96,14 +96,21 @@ def delete_product():
         cursor.close()
         conn.close()
 
-
 @app.route('/add-product', methods=['POST'])
 def add_product():
-    data = request.get_json()
-    product_name = data.get('product_name')
-    stock = data.get('stock')
-    price = data.get('price')
+    # JSON isteği olup olmadığını kontrol edin
+    if request.content_type == 'application/json':
+        data = request.get_json()
+        product_name = data.get('product_name')
+        stock = data.get('stock')
+        price = data.get('price')
+    else:
+        # Formdan gelen verileri işleyin
+        product_name = request.form.get('product_name')
+        stock = request.form.get('stock')
+        price = request.form.get('price')
 
+    # Doğrulama
     if not (product_name and stock and price):
         return jsonify({"success": False, "message": "Tüm alanlar doldurulmalıdır."}), 400
 
@@ -111,22 +118,12 @@ def add_product():
         conn = get_database_connection()
         cursor = conn.cursor()
 
-        # Ürün ekleme
         cursor.execute(
             "INSERT INTO Products (ProductName, Stock, Price) VALUES (%s, %s, %s)",
-            (product_name, stock, price)
+            (product_name, int(stock), float(price)),
         )
         conn.commit()
-
-        # Yeni ürünleri döndür
-        cursor.execute("SELECT ProductID, ProductName, Stock, Price FROM Products")
-        products = cursor.fetchall()
-
-        return jsonify({
-            "success": True,
-            "message": "Ürün başarıyla eklendi.",
-            "products": [{"ProductID": p[0], "ProductName": p[1], "Stock": p[2], "Price": float(p[3])} for p in products]
-        })
+        return jsonify({"success": True, "message": "Ürün başarıyla eklendi."})
 
     except Exception as e:
         return jsonify({"success": False, "message": f"Hata: {str(e)}"}), 500
@@ -134,6 +131,7 @@ def add_product():
     finally:
         cursor.close()
         conn.close()
+
 
 
 # Admin Panel: Yeni Admin Eklenmesi
