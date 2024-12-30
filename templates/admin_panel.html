@@ -422,7 +422,7 @@
                     .then(data => {
                         if (data.success) {
                             alert(data.message);
-                            location.reload(); // Tabloyu güncellemek için sayfayı yeniden yükle
+                            location.reload();  
                         } else {
                             alert(`Hata: ${data.message}`);
                         }
@@ -434,7 +434,7 @@
 
         function updateOrderPanel(orders) {
             const orderTableBody = document.querySelector("#orderPanel table tbody");
-            orderTableBody.innerHTML = ""; // Mevcut tabloyu temizle
+            orderTableBody.innerHTML = ""; 
 
             orders.forEach(order => {
                 const row = document.createElement("tr");
@@ -574,7 +574,7 @@
 
         function updateCustomerPanel(customers) {
             const customerTableBody = document.querySelector('#customerPanel table tbody');
-            customerTableBody.innerHTML = ''; // Tabloyu temizle
+            customerTableBody.innerHTML = ''; 
             customers.forEach(customer => {
                 const row = document.createElement('tr');
                 row.innerHTML = `

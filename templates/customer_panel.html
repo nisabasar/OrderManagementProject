@@ -172,12 +172,22 @@
                     <tbody>
                         {% if orders %}
                         {% for order in orders %}
-                        <tr
-                            class="{% if order.OrderStatus == 'Tamamlandı' %}table-success{% elif order.OrderStatus == 'İşleniyor' %}table-warning{% else %}table-danger{% endif %}">
+                        <tr class="{% if order.OrderStatus == 'Completed' %}table-success
+                           {% elif order.OrderStatus == 'Pending' %}table-warning
+                           {% elif order.OrderStatus == 'Failed' %}table-danger
+                           {% endif %}">
                             <td>{{ order.OrderID }}</td>
                             <td>{{ order.ProductName }}</td>
                             <td>{{ order.Quantity }}</td>
-                            <td>{{ order.OrderStatus }}</td>
+                            <td>
+                                {% if order.OrderStatus == 'Completed' %}
+                                Onaylandı
+                                {% elif order.OrderStatus == 'Pending' %}
+                                Beklemede
+                                {% elif order.OrderStatus == 'Failed' %}
+                                Reddedildi
+                                {% endif %}
+                            </td>
                         </tr>
                         {% endfor %}
                         {% else %}
@@ -200,7 +210,7 @@
             document.querySelector('#cart-section').innerHTML = cartHtml;
             bindRemoveFromCartButtons();
         }
-        
+
         function updateCustomerInfo() {
             fetch('/customer-info')
                 .then(response => response.json())

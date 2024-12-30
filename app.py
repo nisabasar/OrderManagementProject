@@ -882,7 +882,7 @@ def filter_logs():
         return render_template('admin_panel.html', logs=logs)
     except Exception as e:
         return f"Hata: {e}", 500
-# Dinamik Öncelik Yönetimi
+
 
 def calculate_priority_score(customer_id):
     try:
@@ -948,75 +948,60 @@ def process_all_orders():
         conn = get_database_connection()
         cursor = conn.cursor()
 
-        # Beklemede olan tüm siparişleri öncelik sırasına göre al
+        # Beklemede olan siparişleri öncelik sırasına göre al
         cursor.execute("""
-            SELECT o.OrderID, o.CustomerID, o.ProductID, o.Quantity, o.TotalPrice, p.Stock, c.Budget, c.CustomerType
+            SELECT o.OrderID, o.CustomerID, o.ProductID, o.Quantity, o.TotalPrice, o.OrderDate,
+                   p.Stock, c.Budget, c.CustomerType, c.TotalSpent, c.PriorityScore
             FROM Orders o
             JOIN Products p ON o.ProductID = p.ProductID
             JOIN Customers c ON o.CustomerID = c.CustomerID
             WHERE o.OrderStatus = 'Pending'
-            ORDER BY 
-                CASE c.CustomerType 
-                    WHEN 'Premium' THEN 1 
-                    ELSE 2 
-                END, 
-                o.OrderDate ASC
+            ORDER BY c.PriorityScore DESC, o.OrderDate ASC
         """)
         orders = cursor.fetchall()
 
         if not orders:
             return jsonify({"success": False, "message": "Beklemede sipariş bulunamadı."})
 
-        # Siparişleri işleme
         for order in orders:
+            product_id = order['ProductID']
             product_stock = order['Stock']
             customer_budget = order['Budget']
             total_price = order['TotalPrice']
+            quantity = order['Quantity']
+            order_id = order['OrderID']
+            customer_id = order['CustomerID']
 
-            if product_stock >= order['Quantity'] and customer_budget >= total_price:
-                # Siparişi tamamla
-                cursor.execute("""
-                    UPDATE Orders
-                    SET OrderStatus = 'Completed'
-                    WHERE OrderID = %s
-                """, (order['OrderID'],))
+            # Veritabanında stok miktarını kilitle ve güncelle
+            cursor.execute("SELECT Stock FROM Products WHERE ProductID = %s FOR UPDATE", (product_id,))
+            current_stock = cursor.fetchone()['Stock']
 
-                # Stok güncelle
-                cursor.execute("""
-                    UPDATE Products
-                    SET Stock = Stock - %s
-                    WHERE ProductID = %s
-                """, (order['Quantity'], order['ProductID']))
+            # Stok kontrolü
+            if current_stock >= quantity and customer_budget >= total_price:
+                # Stok ve bütçe güncelleme
+                cursor.execute("UPDATE Products SET Stock = Stock - %s WHERE ProductID = %s", (quantity, product_id))
+                cursor.execute("UPDATE Customers SET Budget = Budget - %s, TotalSpent = TotalSpent + %s WHERE CustomerID = %s",
+                               (total_price, total_price, customer_id))
+                cursor.execute("UPDATE Orders SET OrderStatus = 'Completed' WHERE OrderID = %s", (order_id,))
 
-                # Bütçe güncelle
-                cursor.execute("""
-                    UPDATE Customers
-                    SET Budget = Budget - %s
-                    WHERE CustomerID = %s
-                """, (total_price, order['CustomerID']))
-
-                # Log ekle
-                log_action(order['CustomerID'], "Bilgilendirme", f"Sipariş (ID: {order['OrderID']}) başarıyla tamamlandı.")
+                # Log kaydı
+                log_action(customer_id, "Bilgilendirme", f"Sipariş (ID: {order_id}) başarıyla tamamlandı.")
             else:
-                # Siparişi başarısız olarak işaretle
-                cursor.execute("""
-                    UPDATE Orders
-                    SET OrderStatus = 'Failed'
-                    WHERE OrderID = %s
-                """, (order['OrderID'],))
-
-                # Log ekle
-                log_action(order['CustomerID'], "Hata", f"Sipariş (ID: {order['OrderID']}) başarısız oldu. Stok veya bütçe yetersiz.")
+                # Sipariş reddedilir
+                cursor.execute("UPDATE Orders SET OrderStatus = 'Failed' WHERE OrderID = %s", (order_id,))
+                log_action(customer_id, "Hata", f"Sipariş (ID: {order_id}) başarısız oldu. Stok veya bütçe yetersiz.")
 
         conn.commit()
-        return jsonify({"success": True, "message": "Tüm bekleyen siparişler başarıyla işlendi."})
+        return jsonify({"success": True, "message": "Tüm siparişler başarıyla işlendi."})
 
     except Exception as e:
+        conn.rollback()  # Hata durumunda işlemi geri al
         return jsonify({"success": False, "message": str(e)})
 
     finally:
         cursor.close()
         conn.close()
+
 
 
 @app.route('/process-orders', methods=['POST'])
