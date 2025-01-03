@@ -1,172 +1,135 @@
-Order Management System
+# Order Management System
 
 This project is a Flask-based web application designed for managing an order management system with functionalities for both admins and customers. It provides tools for managing products, customer orders, and stock, with user roles (admin and customer) to ensure controlled access.
 
-Features
+## Features
 
-Admin Panel
+### Admin Panel
+- **Product Management:**
+  - Add new products.
+  - Update stock.
+  - Delete products.
+- **Order Management:**
+  - Approve or reject customer orders.
+  - View and process pending orders.
+- **Customer Management:**
+  - View all registered customers.
+  - Manage customer priority scores.
+- **Critical Stock Monitoring:**
+  - Highlight products with stock below 10.
+- **Activity Logs:**
+  - Maintain logs of all major actions (e.g., stock updates, order approvals).
 
-Product Management:
+### Customer Panel
+- **Product Browsing:**
+  - View available products with stock and pricing details.
+- **Shopping Cart:**
+  - Add or remove products to/from the cart.
+  - Checkout orders.
+- **Order Tracking:**
+  - View status of past and pending orders.
 
-Add new products.
+## Technology Stack
+- **Backend:** Flask (Python)
+- **Database:** MySQL
+- **Frontend:** HTML, CSS, JavaScript (Bootstrap 5)
+- **Session Management:** Flask sessions
+- **Logging:** Custom logging system integrated with the database
 
-Update stock.
+## Requirements
 
-Delete products.
+1. **Python 3.8+**
+2. **MySQL**
+3. Required Python Libraries:
+   - Flask
+   - MySQLdb
+   - Jinja2
+   - Chart.js (for visualizing stock levels)
 
-Order Management:
+## Installation and Setup
 
-Approve or reject customer orders.
-
-View and process pending orders.
-
-Customer Management:
-
-View all registered customers.
-
-Manage customer priority scores.
-
-Critical Stock Monitoring:
-
-Highlight products with stock below 10.
-
-Activity Logs:
-
-Maintain logs of all major actions (e.g., stock updates, order approvals).
-
-Customer Panel
-
-Product Browsing:
-
-View available products with stock and pricing details.
-
-Shopping Cart:
-
-Add or remove products to/from the cart.
-
-Checkout orders.
-
-Order Tracking:
-
-View status of past and pending orders.
-
-Technology Stack
-
-Backend: Flask (Python)
-
-Database: MySQL
-
-Frontend: HTML, CSS, JavaScript (Bootstrap 5)
-
-Session Management: Flask sessions
-
-Logging: Custom logging system integrated with the database
-
-Requirements
-
-Python 3.8+
-
-MySQL
-
-Required Python Libraries:
-
-Flask
-
-MySQLdb
-
-Jinja2
-
-Chart.js (for visualizing stock levels)
-
-Installation and Setup
-
-Step 1: Clone the Repository
-
+### Step 1: Clone the Repository
+```bash
 git clone https://github.com/yourusername/order-management-system.git
 cd order-management-system
+```
 
-Step 2: Install Python Dependencies
+### Step 2: Install Python Dependencies
 
-Use pip to install the required dependencies:
-
+Use `pip` to install the required dependencies:
+```bash
 pip install -r requirements.txt
+```
 
-Step 3: Configure the Database
+### Step 3: Configure the Database
 
-Create a MySQL database named OrderManagement.
+1. Create a MySQL database named `OrderManagement`.
+2. Import the provided SQL schema file to set up the required tables:
+```bash
+   mysql -u root -p OrderManagement < schema.sql
+```
+3. Update the get_database_connection function in app/database.py with your MySQL credentials.
 
-Import the provided SQL schema file to set up the required tables:
-
-mysql -u root -p OrderManagement < schema.sql
-
-Update the get_database_connection function in app/database.py with your MySQL credentials.
-
-Step 4: Run the Application
+### Step 4: Run the Application
 
 Start the Flask application by running the following command:
 
+```bash
 python main.py
+```
 
 The application will be available at http://127.0.0.1:5000.
 
-Usage
+## Usage
 
-Admin Credentials
+### Admin Credentials
+Upon setting up the database, you can log in as an admin using the credentials defined in the `Users` table.
 
-Upon setting up the database, you can log in as an admin using the credentials defined in the Users table.
+### Endpoints
 
-Endpoints
+#### Admin-Specific Endpoints
+- `/admin-panel`: View and manage all admin functionalities.
+- `/add-admin`: Add new admin users.
+- `/update-stock`: Update product stock.
 
-Admin-Specific Endpoints
+#### Customer-Specific Endpoints
+- `/customer-panel`: Access the customer dashboard.
+- `/add-to-cart`: Add a product to the shopping cart.
+- `/checkout`: Finalize an order.
 
-/admin-panel: View and manage all admin functionalities.
+#### General Endpoints
+- `/login`: User login.
+- `/register`: Customer registration.
 
-/add-admin: Add new admin users.
-
-/update-stock: Update product stock.
-
-Customer-Specific Endpoints
-
-/customer-panel: Access the customer dashboard.
-
-/add-to-cart: Add a product to the shopping cart.
-
-/checkout: Finalize an order.
-
-General Endpoints
-
-/login: User login.
-
-/register: Customer registration.
-
-Logs
-
+### Logs
 Activity logs are accessible in the admin panel under the "Log Management" section. These logs provide insights into all major system actions, including errors and updates.
 
-Screenshots
+## Screenshots
 
-Admin Panel
+### Admin Panel
 
-Product Management Interface
+#### Product Management Interface
+![Product Management Interface](images/admin_product_management.png)
 
-Order Approval Dashboard
+#### Order Approval Dashboard
+![Order Approval Dashboard](images/admin_order_approval.png)
 
-Customer List with Priority Scores
+#### Customer List with Priority Scores
+![Customer List](images/admin_customer_list.png)
 
-Customer Panel
+### Customer Panel
 
-Product Browsing and Shopping Cart
+#### Product Browsing and Shopping Cart
+![Product Browsing](images/customer_product_browsing.png)
 
-Order History
+#### Order History
+![Order History](images/customer_order_history.png)
 
-Development Notes
 
-Concurrency Management: Customer orders are processed using threading to handle multiple simultaneous actions efficiently.
+## Development Notes
+- **Concurrency Management:** Customer orders are processed using threading to handle multiple simultaneous actions efficiently.
+- **Priority System:** Customer priority scores are calculated dynamically based on waiting time and customer type.
+- **Security:** Admin features are protected by session-based role validation.
 
-Priority System: Customer priority scores are calculated dynamically based on waiting time and customer type.
-
-Security: Admin features are protected by session-based role validation.
-
-License
-
+## License
 This project is licensed under the MIT License. See the LICENSE file for details.
