@@ -109,21 +109,21 @@ Activity logs are accessible in the admin panel under the "Log Management" secti
 ### Admin Panel
 
 #### Product Management Interface
-![Product Management Interface](images/admin_product_management.png)
+![Product Management Interface](admin_product_management.png)
 
 #### Order Approval Dashboard
-![Order Approval Dashboard](images/admin_order_approval.png)
+![Order Approval Dashboard](admin_order_approval.png)
 
 #### Customer List with Priority Scores
-![Customer List](images/admin_customer_list.png)
+![Customer List](admin_customer_list.png)
 
 ### Customer Panel
 
 #### Product Browsing and Shopping Cart
-![Product Browsing](images/customer_product_browsing.png)
+![Product Browsing](customer_product_browsing.png)
 
 #### Order History
-![Order History](images/customer_order_history.png)
+![Order History](customer_order_history.png)
 
 
 ## Development Notes
