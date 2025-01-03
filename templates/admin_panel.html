@@ -278,9 +278,8 @@
 
         </div>
 
-
-
         <div id="logPanel" class="hidden">
+
             <div class="card mb-4">
                 <div class="card-header">Log Yönetimi</div>
                 <div class="card-body table-container">
@@ -288,16 +287,32 @@
                         <thead>
                             <tr>
                                 <th>Log ID</th>
-                                <th>Tür</th>
+                                <th>Müşteri ID</th>
+                                <th>Sipariş ID</th>
+                                <th>Ürün ID</th>
+                                <th>Miktar</th>
+                                <th>Log Türü</th>
                                 <th>Detay</th>
-                                <th>Zaman</th>
+                                <th>Tarih</th>
                             </tr>
                         </thead>
                         <tbody>
                             {% for log in logs %}
                             <tr>
                                 <td>{{ log.LogID }}</td>
-                                <td>{{ log.LogType }}</td>
+                                <td>{{ log.CustomerID or 'N/A' }}</td>
+                                <td>{{ log.OrderID or 'N/A' }}</td>
+                                <td>{{ log.ProductID or 'N/A' }}</td>
+                                <td>{{ log.Quantity or 'N/A' }}</td>
+                                <td>
+                                    {% if log.LogType == 'Info' %}
+                                    <span class="badge bg-info text-dark">Bilgilendirme</span>
+                                    {% elif log.LogType == 'Warning' %}
+                                    <span class="badge bg-warning text-dark">Uyarı</span>
+                                    {% else %}
+                                    <span class="badge bg-danger">Hata</span>
+                                    {% endif %}
+                                </td>
                                 <td>{{ log.LogDetails }}</td>
                                 <td>{{ log.LogDate }}</td>
                             </tr>
@@ -422,7 +437,7 @@
                     .then(data => {
                         if (data.success) {
                             alert(data.message);
-                            location.reload();  
+                            location.reload();
                         } else {
                             alert(`Hata: ${data.message}`);
                         }
@@ -434,7 +449,7 @@
 
         function updateOrderPanel(orders) {
             const orderTableBody = document.querySelector("#orderPanel table tbody");
-            orderTableBody.innerHTML = ""; 
+            orderTableBody.innerHTML = "";
 
             orders.forEach(order => {
                 const row = document.createElement("tr");
@@ -446,6 +461,55 @@
                 orderTableBody.appendChild(row);
             });
         }
+        function fetchAndUpdateLogs(logType = "All") {
+            fetch(`/admin/logs?type=${logType}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        const logTableBody = document.getElementById('logTableBody');
+                        logTableBody.innerHTML = ''; // Mevcut tabloyu temizle
+
+                        data.logs.forEach(log => {
+                            const row = document.createElement('tr');
+                            row.innerHTML = `
+                        <td>${log.LogID}</td>
+                        <td>${log.CustomerID || 'N/A'}</td>
+                        <td>${log.OrderID || 'N/A'}</td>
+                        <td>${log.ProductID || 'N/A'}</td>
+                        <td>${log.Quantity || 'N/A'}</td>
+                        <td>${log.Result || 'N/A'}</td>
+                        <td>
+                            <span class="badge ${log.LogType === 'Info'
+                                    ? 'bg-info text-dark'
+                                    : log.LogType === 'Warning'
+                                        ? 'bg-warning text-dark'
+                                        : 'bg-danger'
+                                }">${log.LogType}</span>
+                        </td>
+                        <td>${log.LogDetails}</td>
+                        <td>${log.LogDate}</td>
+                    `;
+                            logTableBody.appendChild(row);
+                        });
+                    } else {
+                        console.error('Loglar alınamadı:', data.message);
+                    }
+                    
+                })
+                .catch(error => console.error('Hata:', error));
+        }
+
+
+        // Log paneli açıldığında logları yükle
+        document.getElementById('logPanelButton').addEventListener('click', function () {
+            fetchAndUpdateLogs();
+            console.log("Hello World!!")
+        });
 
 
         document.getElementById('customerPanelButton').addEventListener('click', function () {
@@ -574,7 +638,7 @@
 
         function updateCustomerPanel(customers) {
             const customerTableBody = document.querySelector('#customerPanel table tbody');
-            customerTableBody.innerHTML = ''; 
+            customerTableBody.innerHTML = '';
             customers.forEach(customer => {
                 const row = document.createElement('tr');
                 row.innerHTML = `

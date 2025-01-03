@@ -8,21 +8,25 @@ import MySQLdb
 app = Flask(__name__)
 app.secret_key = "supersecretkey"
 
-# Loglama Fonksiyonu
-def log_action(customer_id, log_type, details):
+def log_action(log_type="Info", customer_id=None, order_id=None, product_id=None, quantity=None, result=None, details=None):
+    """
+    Logs an action into the Logs table.
+    """
     try:
         conn = get_database_connection()
         cursor = conn.cursor()
         cursor.execute("""
-            INSERT INTO Logs (CustomerID, LogType, LogDetails, LogDate)
-            VALUES (%s, %s, %s, NOW())
-        """, (customer_id, log_type, details))
+            INSERT INTO Logs (LogType, CustomerID, OrderID, ProductID, Quantity, Result, LogDetails, LogDate)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, NOW())
+        """, (log_type, customer_id, order_id, product_id, quantity, result, details))
+        print("burasi")
         conn.commit()
     except Exception as e:
         print(f"Loglama sırasında hata oluştu: {e}")
     finally:
         cursor.close()
         conn.close()
+
 
 
 @app.route('/update-stock', methods=['POST'])
@@ -37,12 +41,13 @@ def update_stock():
         cursor.execute("UPDATE Products SET Stock = %s WHERE ProductID = %s", (new_stock, product_id))
         conn.commit()
 
-        # Güncellenmiş ürünleri ve kritik ürünleri al
+
         cursor.execute("SELECT * FROM Products")
         products = cursor.fetchall()
         cursor.execute("SELECT * FROM Products WHERE Stock < 10")
         critical_products = cursor.fetchall()
 
+        log_action(log_type="Info", product_id=product_id, quantity=new_stock, result="Başarılı", details="Stok güncellendi.")
         return jsonify({
             "success": True,
             "message": "Stok başarıyla güncellendi.",
@@ -50,6 +55,7 @@ def update_stock():
             "critical_products": critical_products
         })
     except Exception as e:
+        log_action(log_type="Error", product_id=product_id, details=f"Stok güncelleme hatası: {str(e)}")
         return jsonify({"success": False, "message": f"Hata: {str(e)}"}), 500
     finally:
         cursor.close()
@@ -73,7 +79,7 @@ def delete_product():
         products = cursor.fetchall()
         cursor.execute("SELECT * FROM Products WHERE Stock < 10")
         critical_products = cursor.fetchall()
-
+        
         return jsonify({
             "success": True,
             "message": "Ürün başarıyla silindi.",
@@ -95,6 +101,7 @@ def add_product():
         price = float(data.get('price'))
 
         if not (product_name and stock and price):
+            log_action(log_type="Error", details="Ürün ekleme başarısız: Eksik bilgi.")
             return jsonify({"success": False, "message": "Tüm alanlar doldurulmalıdır."}), 400
 
         conn = get_database_connection()
@@ -108,6 +115,7 @@ def add_product():
         cursor.execute("SELECT * FROM Products WHERE Stock < 10")
         critical_products = cursor.fetchall()
 
+        log_action(log_type="Info", details=f"Ürün eklendi: {product_name}", product_id=cursor.lastrowid, quantity=stock, result="Başarılı")
         return jsonify({
             "success": True,
             "message": "Ürün başarıyla eklendi.",
@@ -115,6 +123,7 @@ def add_product():
             "critical_products": critical_products
         })
     except Exception as e:
+        log_action(log_type="Error", details=f"Ürün ekleme hatası: {str(e)}")
         return jsonify({"success": False, "message": f"Hata: {str(e)}"}), 500
     finally:
         cursor.close()
@@ -155,9 +164,6 @@ def get_customers():
         conn.close()
 
 
-
-
-# Admin Panel: Yeni Admin Eklenmesi
 @app.route('/add-admin', methods=['GET', 'POST'])
 def add_admin():
     if 'role' not in session or session['role'] != 'Admin':
@@ -243,15 +249,7 @@ def login():
 def check_session():
     return jsonify(session)
 
-# Kısıtlamalar ile her endpointin loglanması
-@app.before_request
-def restrict_and_log():
-    if 'role' in session:
-        log_action(session.get('user_id'), "Info", f"Endpoint ziyaret edildi: {request.path}")
-    else:
-        log_action(None, "Warning", f"Yetkisiz erişim denemesi: {request.path}")
 
-# Kayıt Olma
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     if request.method == 'POST':
@@ -296,7 +294,6 @@ def approve_all_orders():
         conn = get_database_connection()
         cursor = conn.cursor()
 
-        # Sadece "Pending" durumundaki siparişleri onayla
         cursor.execute("""
             UPDATE Orders
             SET OrderStatus = 'Approved'
@@ -304,7 +301,7 @@ def approve_all_orders():
         """)
         conn.commit()
 
-        # Kalan "Pending" siparişleri çek
+
         cursor.execute("SELECT * FROM Orders WHERE OrderStatus = 'Pending'")
         pending_orders = cursor.fetchall()
 
@@ -329,7 +326,6 @@ def reject_all_orders():
         conn = get_database_connection()
         cursor = conn.cursor()
 
-        # Sadece "Pending" durumundaki siparişleri reddet
         cursor.execute("""
             UPDATE Orders
             SET OrderStatus = 'Rejected'
@@ -337,7 +333,6 @@ def reject_all_orders():
         """)
         conn.commit()
 
-        # Kalan "Pending" siparişleri çek
         cursor.execute("SELECT * FROM Orders WHERE OrderStatus = 'Pending'")
         pending_orders = cursor.fetchall()
 
@@ -359,7 +354,6 @@ def update_priority_scores():
         conn = get_database_connection()
         cursor = conn.cursor()
 
-        # Tüm müşterilerin bekleme süresini ve öncelik skorunu güncelle
         cursor.execute("""
             SELECT CustomerID, CustomerType, TIMESTAMPDIFF(SECOND, OrderDate, NOW()) AS WaitingTime
             FROM Orders
@@ -372,11 +366,9 @@ def update_priority_scores():
             customer_type = order['CustomerType']
             waiting_time = order['WaitingTime']
 
-            # Temel öncelik skoru
             base_priority = 15 if customer_type == 'Premium' else 10
             priority_score = base_priority + (waiting_time * 0.5)
 
-            # Müşteri tablosunu güncelle
             cursor.execute("""
                 UPDATE Customers
                 SET PriorityScore = %s, WaitingTime = %s
@@ -402,7 +394,6 @@ def customer_orders():
         conn = get_database_connection()
         cursor = conn.cursor()
 
-        # Kullanıcının siparişlerini al
         cursor.execute("""
             SELECT o.OrderID, p.ProductName, o.Quantity, o.OrderStatus
             FROM Orders o
@@ -425,7 +416,6 @@ def customer_info():
         conn = get_database_connection()
         cursor = conn.cursor()
 
-        # Müşteri bilgilerini al
         cursor.execute("SELECT * FROM Customers WHERE UserID = %s", (session['user_id'],))
         customer_info = cursor.fetchone()
         
@@ -459,15 +449,12 @@ def customer_panel():
         conn = get_database_connection()
         cursor = conn.cursor()
 
-        # Müşteri bilgilerini al
         cursor.execute("SELECT * FROM Customers WHERE UserID = %s", (session['user_id'],))
         customer_info = cursor.fetchone()
 
-        # Ürünleri al
         cursor.execute("SELECT * FROM Products")
         products = cursor.fetchall()
 
-        # Sepeti al
         cursor.execute("""
             SELECT p.ProductName, c.Quantity, c.TotalPrice, c.ProductID
             FROM Cart c
@@ -476,10 +463,8 @@ def customer_panel():
         """, (session['customer_id'],))
         cart = cursor.fetchall()
 
-        # Toplam tutarı hesapla
         total_price = sum(item['TotalPrice'] for item in cart if item['TotalPrice'] is not None)
 
-        # Kullanıcının siparişlerini al
         cursor.execute("""
             SELECT o.OrderID, p.ProductName, o.Quantity, o.OrderStatus
             FROM Orders o
@@ -524,30 +509,26 @@ def add_to_cart():
         conn = get_database_connection()
         cursor = conn.cursor()
 
-        # Ürün bilgilerini kontrol et
         cursor.execute("SELECT Stock, Price FROM Products WHERE ProductID = %s", (product_id,))
         product = cursor.fetchone()
 
         if not product:
             return jsonify({"success": False, "error": "Ürün bulunamadı!"})
 
-        # Sepetteki mevcut ürün miktarını al
         cursor.execute("SELECT Quantity FROM Cart WHERE CustomerID = %s AND ProductID = %s", (customer_id, product_id))
         cart_item = cursor.fetchone()
         current_quantity = cart_item['Quantity'] if cart_item else 0
 
-        # Stok kontrolü
         if product['Stock'] < (quantity + current_quantity):
             return jsonify({"success": False, "error": "Stok yetersiz!"})
 
-        # Maksimum 5 adet kontrolü
         if (quantity + current_quantity) > 5:
             return jsonify({"success": False, "error": "Aynı üründen en fazla 5 adet ekleyebilirsiniz!"})
 
         total_price = product['Price'] * (quantity + current_quantity)
 
         if cart_item:
-            # Mevcut ürünü güncelle
+         
             cursor.execute("""
                 UPDATE Cart
                 SET Quantity = %s, TotalPrice = %s
@@ -691,7 +672,7 @@ def admin_panel():
         )
     
     except Exception as e:
-        log_action(session.get('user_id'), "Error", f"Admin panel hatası: {str(e)}")
+        log_action(log_type="Error", details=f"Admin paneli hatası: {str(e)}")
         return f"Hata: {e}", 500
 
 @app.route('/admin/approve-order', methods=['POST'])
@@ -793,7 +774,6 @@ def admin_add_product():
         return f"Hata: {e}", 500
 
 
-# Ürün Silme
 @app.route('/admin/products/delete', methods=['POST'])
 def admin_delete_product():
     if 'role' not in session or session['role'] != 'Admin':
@@ -862,26 +842,6 @@ def admin_approve_orders():
         return f"Hata: {e}", 500
 
 
-# Logları Filtreleme
-@app.route('/admin/logs', methods=['POST'])
-def filter_logs():
-    log_type = request.form['log_type']
-
-    try:
-        conn = get_database_connection()
-        cursor = conn.cursor()
-
-        if log_type == "All":
-            cursor.execute("SELECT * FROM Logs ORDER BY LogDate DESC")
-        else:
-            cursor.execute("SELECT * FROM Logs WHERE LogType = %s ORDER BY LogDate DESC", (log_type,))
-
-        logs = cursor.fetchall()
-        conn.close()
-
-        return render_template('admin_panel.html', logs=logs)
-    except Exception as e:
-        return f"Hata: {e}", 500
 
 
 def calculate_priority_score(customer_id):
@@ -906,7 +866,7 @@ def calculate_priority_score(customer_id):
 
         # Öncelik Skoru Hesabı
         waiting_time_weight = 0.5  # Bekleme süresi ağırlığı
-        priority_score = base_priority_score + (waiting_time * waiting_time_weight)
+        priority_score = base_priority_score + (waiting_time* waiting_time * waiting_time_weight)
 
         # Öncelik skorunu güncelle
         cursor.execute("""
@@ -930,7 +890,7 @@ def admin_logs():
     try:
         conn = get_database_connection()
         cursor = conn.cursor()
-        
+
         if log_type == "All":
             cursor.execute("SELECT * FROM Logs ORDER BY LogDate DESC")
         else:
@@ -938,9 +898,56 @@ def admin_logs():
         
         logs = cursor.fetchall()
         conn.close()
-        return render_template('admin_panel.html', logs=logs, log_filter=log_type)
+        return render_template('admin_panel.html', logs=logs, )
     except Exception as e:
         return f"Hata: {e}", 500
+    
+
+
+import threading
+import time
+from flask import jsonify
+
+def process_order(order, conn):
+    try:
+        cursor = conn.cursor()
+        product_id = order['ProductID']
+        product_stock = order['Stock']
+        customer_budget = order['Budget']
+        total_price = order['TotalPrice']
+        quantity = order['Quantity']
+        order_id = order['OrderID']
+        customer_id = order['CustomerID']
+
+        cursor.execute("SELECT Stock FROM Products WHERE ProductID = %s FOR UPDATE", (product_id,))
+        current_stock = cursor.fetchone()['Stock']
+
+        if current_stock >= quantity and customer_budget >= total_price:
+            cursor.execute("UPDATE Products SET Stock = Stock - %s WHERE ProductID = %s", (quantity, product_id))
+            cursor.execute(
+                "UPDATE Customers SET Budget = Budget - %s, TotalSpent = TotalSpent + %s WHERE CustomerID = %s",
+                (total_price, total_price, customer_id)
+            )
+            cursor.execute("UPDATE Orders SET OrderStatus = 'Completed' WHERE OrderID = %s", (order_id,))
+
+            log_action(log_type="Info", customer_id=customer_id, order_id=order_id, 
+                       product_id=product_id, quantity=quantity, 
+                       result="Başarılı", details="Sipariş tamamlandı.")
+        else:
+            cursor.execute("UPDATE Orders SET OrderStatus = 'Failed' WHERE OrderID = %s", (order_id,))
+            log_action(log_type="Error", customer_id=customer_id, order_id=order_id, 
+                       product_id=product_id, quantity=quantity, 
+                       result="Başarısız", details="Stok yetersiz.")
+
+        conn.commit()
+
+    except Exception as e:
+        conn.rollback()
+        log_action(log_type="Error", details=f"Sipariş işleme hatası: {str(e)}")
+
+    finally:
+        cursor.close()
+
 
 @app.route('/process-all-orders', methods=['POST'])
 def process_all_orders():
@@ -948,7 +955,6 @@ def process_all_orders():
         conn = get_database_connection()
         cursor = conn.cursor()
 
-        # Beklemede olan siparişleri öncelik sırasına göre al
         cursor.execute("""
             SELECT o.OrderID, o.CustomerID, o.ProductID, o.Quantity, o.TotalPrice, o.OrderDate,
                    p.Stock, c.Budget, c.CustomerType, c.TotalSpent, c.PriorityScore
@@ -963,45 +969,26 @@ def process_all_orders():
         if not orders:
             return jsonify({"success": False, "message": "Beklemede sipariş bulunamadı."})
 
+        threads = []
         for order in orders:
-            product_id = order['ProductID']
-            product_stock = order['Stock']
-            customer_budget = order['Budget']
-            total_price = order['TotalPrice']
-            quantity = order['Quantity']
-            order_id = order['OrderID']
-            customer_id = order['CustomerID']
+            thread_conn = get_database_connection()  
+            thread = threading.Thread(target=process_order, args=(order, thread_conn))
+            threads.append(thread)
+            thread.start()
+            time.sleep(1)  # Her thread'i 1 saniyede bir başlatır.
 
-            # Veritabanında stok miktarını kilitle ve güncelle
-            cursor.execute("SELECT Stock FROM Products WHERE ProductID = %s FOR UPDATE", (product_id,))
-            current_stock = cursor.fetchone()['Stock']
+        for thread in threads:
+            thread.join()
 
-            # Stok kontrolü
-            if current_stock >= quantity and customer_budget >= total_price:
-                # Stok ve bütçe güncelleme
-                cursor.execute("UPDATE Products SET Stock = Stock - %s WHERE ProductID = %s", (quantity, product_id))
-                cursor.execute("UPDATE Customers SET Budget = Budget - %s, TotalSpent = TotalSpent + %s WHERE CustomerID = %s",
-                               (total_price, total_price, customer_id))
-                cursor.execute("UPDATE Orders SET OrderStatus = 'Completed' WHERE OrderID = %s", (order_id,))
-
-                # Log kaydı
-                log_action(customer_id, "Bilgilendirme", f"Sipariş (ID: {order_id}) başarıyla tamamlandı.")
-            else:
-                # Sipariş reddedilir
-                cursor.execute("UPDATE Orders SET OrderStatus = 'Failed' WHERE OrderID = %s", (order_id,))
-                log_action(customer_id, "Hata", f"Sipariş (ID: {order_id}) başarısız oldu. Stok veya bütçe yetersiz.")
-
-        conn.commit()
         return jsonify({"success": True, "message": "Tüm siparişler başarıyla işlendi."})
 
     except Exception as e:
-        conn.rollback()  # Hata durumunda işlemi geri al
+        log_action(log_type="Error", details=f"Sipariş işleme hatası: {str(e)}")
         return jsonify({"success": False, "message": str(e)})
 
     finally:
         cursor.close()
         conn.close()
-
 
 
 @app.route('/process-orders', methods=['POST'])
@@ -1010,7 +997,7 @@ def process_orders():
         conn = get_database_connection()
         cursor = conn.cursor()
 
-        # Bekleyen siparişleri öncelik skoruna göre sırala
+
         cursor.execute("""
             SELECT o.OrderID, o.CustomerID, o.ProductID, o.Quantity, o.TotalPrice, c.PriorityScore, p.Stock, c.Budget
             FROM Orders o
@@ -1028,21 +1015,21 @@ def process_orders():
             total_price = order['TotalPrice']
 
             if product_stock >= order['Quantity'] and customer_budget >= total_price:
-                # Siparişi tamamla (Completed)
+    
                 cursor.execute("""
                     UPDATE Orders
                     SET OrderStatus = 'Completed'
                     WHERE OrderID = %s
                 """, (order['OrderID'],))
 
-                # Stok miktarını güncelle
+      
                 cursor.execute("""
                     UPDATE Products
                     SET Stock = Stock - %s
                     WHERE ProductID = %s
                 """, (order['Quantity'], order['ProductID']))
 
-                # Müşteri bütçesini güncelle
+  
                 cursor.execute("""
                     UPDATE Customers
                     SET Budget = Budget - %s
@@ -1051,7 +1038,7 @@ def process_orders():
 
                 processed_orders.append(order)
             else:
-                # Siparişi başarısız yap (Failed)
+               
                 cursor.execute("""
                     UPDATE Orders
                     SET OrderStatus = 'Failed'
@@ -1073,6 +1060,14 @@ def process_orders():
         conn.close()
 
   
+
+
+from flask import Response
+import time
+
+@app.route('/process-all-orders-stream', methods=['GET'])
+
+
 @app.route('/products', methods=['GET'])
 def get_products():
     """Tüm ürünleri listele."""
@@ -1236,23 +1231,7 @@ def checkout_cart():
         return jsonify({"success": False, "error": str(e)})
 
     
-# Tüm isteklerin loglanması
-@app.after_request
-def log_request(response):
-    try:
-        conn = get_database_connection()
-        cursor = conn.cursor()
-        log_type = "Info" if response.status_code == 200 else "Error"
-        log_details = f"Path: {request.path}, Status: {response.status_code}, Method: {request.method}"
-        cursor.execute("""
-            INSERT INTO Logs (CustomerID, LogType, LogDetails, LogDate)
-            VALUES (%s, %s, %s, NOW())
-        """, (session.get('user_id'), log_type, log_details))
-        conn.commit()
-        conn.close()
-    except Exception as e:
-        print(f"After request loglama hatası: {e}")
-    return response
+
 
 @app.route('/cleanup-cart', methods=['POST'])
 def cleanup_cart():
